@@ -10,6 +10,10 @@ class NativeLib {
 
     external fun getCpuTime(): Float
 
+    external fun bindMainThreadToMaxCore(): Boolean
+
+    external fun bindCurrentThreadToMaxCore(): Boolean
+
     companion object {
         // Used to load the 'nativelib' library on application startup.
         init {

@@ -1,4 +1,4 @@
-package com.example.performance.cpuusage
+package com.example.nativelib.cpuusage
 
 import android.util.Log
 import com.example.nativelib.NativeLib

@@ -1,8 +1,7 @@
 package com.example.performance.demo
 
-import android.util.Log
-import com.example.performance.cpuusage.CPUFreeHelper
-import com.example.performance.cpuusage.CpuFreeListener
+import com.example.nativelib.cpuusage.CPUFreeHelper
+import com.example.nativelib.cpuusage.CpuFreeListener
 import kotlin.concurrent.thread
 
 /**

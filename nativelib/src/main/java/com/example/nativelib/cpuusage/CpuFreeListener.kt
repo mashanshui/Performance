@@ -1,4 +1,4 @@
-package com.example.performance.cpuusage
+package com.example.nativelib.cpuusage
 
 /**
  * @author mashanshui

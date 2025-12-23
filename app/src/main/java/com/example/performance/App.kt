@@ -1,9 +1,8 @@
 package com.example.performance
 
 import android.app.Application
-import android.util.Log
-import com.example.nativelib.cpuusage.BindCoreUtils
 import com.example.nativelib.hook.HookUtils
+import com.example.nativelib.thread.ThreadUtils
 
 /**
  * @author mashanshui
@@ -14,6 +13,8 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         HookUtils.initHook()
-        BindCoreUtils.bindMainThreadToMaxCore()
+        ThreadUtils.bindMainThreadToMaxCore()
+        ThreadUtils.setMainThreadMaxPriority()
+        ThreadUtils.setRenderThreadMaxPriority()
     }
 }

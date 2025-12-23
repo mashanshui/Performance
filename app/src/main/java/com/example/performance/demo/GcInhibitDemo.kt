@@ -15,7 +15,7 @@ class GcInhibitDemo {
     fun test() {
         logGcDetail()
         GcUtils.openGcInhibit(3)
-        repeat(1000000) {
+        repeat(100000) {
             TestObject("sdfkhsadf asdf sadf" + it)
         }
         logGcDetail()

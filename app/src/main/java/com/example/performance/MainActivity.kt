@@ -8,6 +8,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.nativelib.NativeLib
 import com.example.nativelib.cpuusage.BindCoreUtils
+import com.example.performance.demo.GcInhibitDemo
 import kotlin.concurrent.thread
 
 class MainActivity : AppCompatActivity() {
@@ -22,13 +23,14 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-        thread {
-            Log.e(TAG, "onCreate: " + Thread.currentThread().threadId())
-            BindCoreUtils.bindCurrentThreadToMaxCore()
-            var i = 0
-            repeat(10000000){
-                i++
-            }
-        }
+//        thread {
+//            Log.e(TAG, "onCreate: " + Thread.currentThread().threadId())
+//            BindCoreUtils.bindCurrentThreadToMaxCore()
+//            var i = 0
+//            repeat(10000000){
+//                i++
+//            }
+//        }
+        GcInhibitDemo().test()
     }
 }

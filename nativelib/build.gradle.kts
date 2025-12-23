@@ -14,11 +14,18 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        ndk {
+            abiFilters.add("arm64-v8a")
+        }
         externalNativeBuild {
             cmake {
                 cppFlags("")
             }
         }
+    }
+
+    buildFeatures {
+        prefab = true
     }
 
     buildTypes {
@@ -40,6 +47,12 @@ android {
     kotlinOptions {
         jvmTarget = "11"
     }
+    android {
+        packagingOptions {
+            exclude("**/libshadowhook.so")
+            exclude("**/libshadowhook_nothing.so")
+        }
+    }
 }
 
 dependencies {
@@ -49,4 +62,5 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    implementation("com.bytedance.android:shadowhook:2.0.0")
 }

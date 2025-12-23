@@ -14,6 +14,10 @@ class NativeLib {
 
     external fun bindCurrentThreadToMaxCore(): Boolean
 
+    external fun openGcInhibit(seconds: Int)
+
+    external fun closeGcInhibit()
+
     companion object {
         // Used to load the 'nativelib' library on application startup.
         init {

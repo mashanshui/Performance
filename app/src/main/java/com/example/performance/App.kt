@@ -15,6 +15,5 @@ class App : Application() {
         HookUtils.initHook()
         ThreadUtils.bindMainThreadToMaxCore()
         ThreadUtils.setMainThreadMaxPriority()
-        ThreadUtils.setRenderThreadMaxPriority()
     }
 }

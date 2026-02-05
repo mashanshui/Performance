@@ -47,15 +47,16 @@ class FpsHelperV2 {
             if (mIsOnlyCollectScroll && !mIsScrolling) {
                 return@addOnFrameMetricsAvailableListener
             }
+            val frameMetricsCopy = FrameMetrics(frameMetrics)
+            mRefreshRate = window.windowManager.defaultDisplay.refreshRate.toInt()
+            mFrameIntervalMillis = 1000 / mRefreshRate
             if (mFrameCount == 0) {
                 mLastTime = System.currentTimeMillis()
-                mRefreshRate = window.windowManager.defaultDisplay.refreshRate.toInt()
-                mFrameIntervalMillis = 1000 / mRefreshRate
             }
-            val total = frameMetrics.getMetric(FrameMetrics.TOTAL_DURATION)
+            val total = frameMetricsCopy.getMetric(FrameMetrics.TOTAL_DURATION)
             val frameTimeMillis = (total / 1000000).toInt()
-//            Log.e(TAG, "onCreate: $frameTimeMillis")
             val jitter = Math.max(mFrameIntervalMillis, frameTimeMillis)
+//            Log.e(TAG, "onCreate: $frameTimeMillis  jitter:$jitter")
             if (jitter > mFrameIntervalMillis) {
                 mHitTotalTime += jitter
                 mDropFrameCount += jitter / mFrameIntervalMillis
@@ -66,7 +67,7 @@ class FpsHelperV2 {
                 collect()
                 mLastTime = now
             }
-            Log.d(TAG, "doFrame: FrameCount:$mFrameCount DropFrameCount:$mDropFrameCount HitTotalTime:$mHitTotalTime")
+//            Log.d(TAG, "doFrame: FrameCount:$mFrameCount DropFrameCount:$mDropFrameCount HitTotalTime:$mHitTotalTime RefreshRate:$mRefreshRate")
         }, Handler())
     }
 
@@ -76,10 +77,7 @@ class FpsHelperV2 {
     }
 
     private fun sumData() {
-        val now = System.currentTimeMillis()
-        val timeConsume = now - mLastTime
-        val scrollHitchRate = mHitTotalTime * 100f / timeConsume
-        Log.e(TAG, "sumData: TimeInterval:$timeConsume FrameCount:$mFrameCount DropFrameCount:$mDropFrameCount ScrollHitchRate:$scrollHitchRate%")
+        Log.e(TAG, "sumData: FrameCount:$mFrameCount DropFrameCount:$mDropFrameCount")
     }
 
     private fun reset() {

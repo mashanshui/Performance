@@ -38,13 +38,25 @@ class LooperMonitor(looper: Looper) {
     }
 
     inner class LooperPrinter : Printer {
+        var isHasChecked: Boolean = false
+        var isValid: Boolean = false
         override fun println(x: String) {
-            dispatch(x[0] == '>', x);
+            if (!isHasChecked) {
+                isValid = x[0] == '>' || x[0] == '<'
+                isHasChecked = true
+                if (!isValid) {
+                    Log.e(TAG, "[println] Printer is inValid! x:$x")
+                }
+            }
+
+            if (isValid) {
+                dispatch(x[0] == '>', x)
+            }
         }
     }
 
     private fun dispatch(isBegin: Boolean, log: String) {
-        Log.d(TAG, "dispatch: $isBegin $log")
+//        Log.d(TAG, "dispatch: $isBegin $log")
         if (isBegin) {
             synchronized(mListeners) {
                 for (listener in mListeners) {

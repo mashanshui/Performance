@@ -1,6 +1,8 @@
 package com.example.performance
 
 import android.app.Application
+import android.util.Log
+import com.example.nativelib.LooperMonitor
 import com.example.nativelib.hook.HookUtils
 import com.example.nativelib.thread.ThreadUtils
 
@@ -15,5 +17,6 @@ class App : Application() {
         HookUtils.initHook()
         ThreadUtils.bindMainThreadToMaxCore()
         ThreadUtils.setMainThreadMaxPriority()
+        LooperMonitor.sMainMonitor
     }
 }

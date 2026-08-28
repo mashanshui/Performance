@@ -21,6 +21,7 @@ import com.chad.library.adapter4.BaseQuickAdapter
 import com.chad.library.adapter4.viewholder.QuickViewHolder
 import com.example.nativelib.MessageCollect
 import com.example.nativelib.fps.FpsHelperV2
+import com.example.nativelib.memory.MemoryUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -55,29 +56,34 @@ class TestFPSActivity : AppCompatActivity() {
             }
             adapter11.submitList(list)
         }
-        findViewById<Button>(R.id.button1).setOnClickListener { view ->
-            repeat(200) { i ->
-                mHandler.post {
-                    Log.e(TAG, "onCreate: " + i)
-                    SystemClock.sleep(10)
-                }
-            }
-        }
+        MemoryUtils.getMemoryInfo()
+//        findViewById<Button>(R.id.button1).setOnClickListener { view ->
+//            repeat(500) { i ->
+//                mHandler.post {
+//                    Log.e(TAG, "onCreate: " + i)
+////                    SystemClock.sleep(10)
+//                    var result = 0.0
+//                    for (j in 0 until 10000) {
+//                        result += Math.sqrt(j.toDouble()) * Math.sin(j.toDouble())
+//                    }
+//                }
+//            }
+//        }
         MessageCollect.start()
-        lifecycleScope.launch(Dispatchers.Default) {
-            delay(10000)
-            repeat(10) { i ->
-                mHandler.post {
-                    Log.e(TAG, "onCreate: " + i)
-                    SystemClock.sleep(10)
-                }
-            }
-            delay(20)
-            val historyMessageQueue = MessageCollect.getHistoryMessageQueue()
-            historyMessageQueue.forEach {
-                Log.e(TAG, "getHistoryMessageQueue: $it")
-            }
-        }
+//        lifecycleScope.launch(Dispatchers.Default) {
+//            delay(10000)
+//            repeat(10) { i ->
+//                mHandler.post {
+//                    Log.e(TAG, "onCreate: " + i)
+//                    SystemClock.sleep(10)
+//                }
+//            }
+//            delay(20)
+//            val historyMessageQueue = MessageCollect.getHistoryMessageQueue()
+//            historyMessageQueue.forEach {
+//                Log.e(TAG, "getHistoryMessageQueue: $it")
+//            }
+//        }
     }
 
     class MyAdapter : BaseQuickAdapter<String, QuickViewHolder>() {
@@ -87,13 +93,19 @@ class TestFPSActivity : AppCompatActivity() {
         }
 
         override fun onBindViewHolder(holder: QuickViewHolder, position: Int, item: String?) {
-            if (mStuck == 10) {
+            if (mStuck == 30) {
                 Log.e(TAG, "onBindViewHolder: ")
                 Thread.sleep(30)
                 mStuck = 0
+                throw NullPointerException()
             }
             mStuck++
             holder.setText(R.id.textView, item)
         }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        Log.e(TAG, "dispatchTouchEvent: ${MotionEvent.actionToString(ev.action)}", Exception())
+        return super.dispatchTouchEvent(ev)
     }
 }

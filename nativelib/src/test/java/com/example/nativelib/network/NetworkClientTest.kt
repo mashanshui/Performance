@@ -1,0 +1,255 @@
+package com.example.nativelib.network
+
+import com.google.gson.JsonParser
+import kotlinx.coroutines.runBlocking
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
+import org.junit.Before
+import org.junit.Test
+
+class NetworkClientTest {
+    private lateinit var server: MockWebServer
+
+    @Before
+    fun setUp() {
+        server = MockWebServer()
+        server.start()
+    }
+
+    @After
+    fun tearDown() {
+        server.shutdown()
+    }
+
+    @Test
+    fun sendBatchAddsHeadersAndSerializesCrashPayload() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody(
+                    """
+                    {
+                      "requestId": "request-1",
+                      "accepted": 1,
+                      "rejected": 0,
+                      "duplicate": 0,
+                      "retryable": false,
+                      "errors": []
+                    }
+                    """.trimIndent(),
+                ),
+        )
+
+        val result = runBlocking {
+            createClient(schemaVersion = 7).sendBatch(sampleRequest())
+        }
+
+        assertTrue(result is NetworkResult.Success)
+        val success = result as NetworkResult.Success
+        assertEquals(1, success.data.accepted)
+        assertEquals(200, success.statusCode)
+
+        val recordedRequest = server.takeRequest()
+        assertEquals("POST", recordedRequest.method)
+        assertEquals("/api/ingest/v1/batches", recordedRequest.path)
+        assertEquals("secret-project-key", recordedRequest.getHeader("X-Project-Key"))
+        assertEquals("7", recordedRequest.getHeader("X-Schema-Version"))
+        assertTrue(recordedRequest.getHeader("Content-Type").orEmpty().startsWith("application/json"))
+
+        val body = JsonParser.parseString(recordedRequest.body.readUtf8()).asJsonObject
+        assertEquals("request-1", body.get("requestId").asString)
+        assertEquals("crash-1", body.getAsJsonArray("events")[0].asJsonObject.get("eventId").asString)
+        assertEquals(
+            "java.lang.IllegalStateException",
+            body.getAsJsonArray("events")[0].asJsonObject
+                .getAsJsonObject("crash")
+                .getAsJsonArray("throwableChain")[0].asJsonObject
+                .get("type").asString,
+        )
+    }
+
+    @Test
+    fun sendBatchMapsPartialSuccessResponse() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody(
+                    """
+                    {
+                      "requestId": "request-1",
+                      "accepted": 1,
+                      "rejected": 1,
+                      "duplicate": 0,
+                      "retryable": false,
+                      "errors": [{
+                        "index": 1,
+                        "eventId": "bad-event",
+                        "code": "MISSING_SESSION_ID",
+                        "message": "sessionId is required",
+                        "retryable": false
+                      }]
+                    }
+                    """.trimIndent(),
+                ),
+        )
+
+        val result = runBlocking {
+            createClient().sendBatch(sampleRequest())
+        }
+
+        assertTrue(result is NetworkResult.Success)
+        val response = (result as NetworkResult.Success).data
+        assertEquals(1, response.accepted)
+        assertEquals(1, response.rejected)
+        assertEquals("MISSING_SESSION_ID", response.errors.single().code)
+        assertFalse(response.errors.single().retryable)
+    }
+
+    @Test
+    fun sendBatchClassifiesRetryableAndPermanentHttpErrors() {
+        server.enqueue(MockResponse().setResponseCode(401).setBody("invalid key"))
+        val unauthorized = runBlocking { createClient().sendBatch(sampleRequest()) }
+
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(503)
+                .setHeader("Retry-After", "42")
+                .setBody("temporarily unavailable"),
+        )
+        val unavailable = runBlocking { createClient().sendBatch(sampleRequest()) }
+
+        server.enqueue(MockResponse().setResponseCode(429).setBody("rate limited"))
+        val rateLimited = runBlocking { createClient().sendBatch(sampleRequest()) }
+
+        assertTrue(unauthorized is NetworkResult.HttpError)
+        assertFalse((unauthorized as NetworkResult.HttpError).retryable)
+        assertEquals(401, unauthorized.statusCode)
+
+        assertTrue(unavailable is NetworkResult.HttpError)
+        assertTrue((unavailable as NetworkResult.HttpError).retryable)
+        assertEquals(503, unavailable.statusCode)
+        assertEquals(42L, unavailable.retryAfterSeconds)
+
+        assertTrue(rateLimited is NetworkResult.HttpError)
+        assertTrue((rateLimited as NetworkResult.HttpError).retryable)
+        assertEquals(429, rateLimited.statusCode)
+    }
+
+    @Test
+    fun sendBatchReturnsSerializationErrorForInvalidJson() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{invalid-json"),
+        )
+
+        val result = runBlocking {
+            createClient().sendBatch(sampleRequest())
+        }
+
+        assertTrue(result is NetworkResult.SerializationError)
+    }
+
+    @Test
+    fun loggingDoesNotExposeProjectKeyOrRequestBody() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{\"accepted\":1}"),
+        )
+
+        val result = runBlocking {
+            NetworkClientFactory.create(
+                NetworkConfig(
+                    baseUrl = server.url("/api").toString(),
+                    projectKey = "secret-project-key",
+                    enableLogging = true,
+                ),
+            ).crashNetworkClient.sendBatch(sampleRequest())
+        }
+
+        assertTrue(result is NetworkResult.Success)
+    }
+
+    @Test
+    fun networkConfigNormalizesBaseUrlAndRejectsInvalidValues() {
+        val config = NetworkConfig(
+            baseUrl = server.url("/api").toString().removeSuffix("/"),
+            projectKey = "key",
+        )
+        assertNotNull(config.normalizedBaseUrl)
+        assertTrue(config.normalizedBaseUrl.toString().endsWith("/api/"))
+
+        assertThrows(IllegalArgumentException::class.java) {
+            NetworkConfig(baseUrl = "not a url", projectKey = "key")
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            NetworkConfig(baseUrl = server.url("/").toString(), projectKey = " ")
+        }
+        assertTrue(config.toString().contains("<redacted>"))
+        assertFalse(config.toString().contains("key"))
+    }
+
+    private fun createClient(
+        schemaVersion: Int = 1,
+    ): CrashNetworkClient {
+        return NetworkClientFactory.create(
+            NetworkConfig(
+                baseUrl = server.url("/api").toString(),
+                projectKey = "secret-project-key",
+                schemaVersion = schemaVersion,
+            ),
+        ).crashNetworkClient
+    }
+
+    private fun sampleRequest(): CrashBatchRequest {
+        return CrashBatchRequest(
+            requestId = "request-1",
+            events = listOf(
+                CrashEvent(
+                    schemaVersion = 1,
+                    eventId = "crash-1",
+                    eventType = "crash",
+                    occurredAt = 1_726_000_000_000,
+                    sessionId = "session-1",
+                    anonymousDeviceId = "device-1",
+                    appId = "demo-app",
+                    appVersion = "1.0",
+                    versionCode = 1,
+                    buildId = "build-1",
+                    environment = "debug",
+                    channel = "official",
+                    osVersion = "35",
+                    deviceModel = "Pixel",
+                    crash = CrashPayload(
+                        throwableChain = listOf(
+                            ThrowableNode(
+                                type = "java.lang.IllegalStateException",
+                                message = "state is invalid",
+                                frames = listOf(
+                                    StackFrame(
+                                        className = "com.example.performance.MainActivity",
+                                        methodName = "onCreate",
+                                        fileName = "MainActivity.kt",
+                                        lineNumber = 42,
+                                        applicationFrame = true,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+    }
+}

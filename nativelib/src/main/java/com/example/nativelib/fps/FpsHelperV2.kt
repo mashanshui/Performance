@@ -31,7 +31,7 @@ class FpsHelperV2 {
     private var mRefreshRate = 60
     private var mFrameIntervalMillis = 1000 / mRefreshRate
     private var mHitTotalTime = 0L
-    private var mLastTime = 0L
+    private var beginMs = 0L
 
     @RequiresApi(Build.VERSION_CODES.N)
     fun start(window: Window, isOnlyCollectScroll: Boolean = false) {
@@ -51,7 +51,7 @@ class FpsHelperV2 {
             mRefreshRate = window.windowManager.defaultDisplay.refreshRate.toInt()
             mFrameIntervalMillis = 1000 / mRefreshRate
             if (mFrameCount == 0) {
-                mLastTime = System.currentTimeMillis()
+                beginMs = System.currentTimeMillis()
             }
             val total = frameMetricsCopy.getMetric(FrameMetrics.TOTAL_DURATION)
             val frameTimeMillis = (total / 1000000).toInt()
@@ -63,9 +63,9 @@ class FpsHelperV2 {
             }
             mFrameCount++
             val now = System.currentTimeMillis()
-            if (now - mLastTime > 1000) {
+            if (now - beginMs > 1000) {
                 collect()
-                mLastTime = now
+                beginMs = now
             }
 //            Log.d(TAG, "doFrame: FrameCount:$mFrameCount DropFrameCount:$mDropFrameCount HitTotalTime:$mHitTotalTime RefreshRate:$mRefreshRate")
         }, Handler())
@@ -84,7 +84,7 @@ class FpsHelperV2 {
         mLastFrameTimeNanos = 0L
         mDropFrameCount = 0
         mFrameCount = 0
-        mLastTime = 0L
+        beginMs = 0L
         mHitTotalTime = 0L
     }
 }

@@ -4,6 +4,7 @@ import com.example.nativelib.network.BatchError
 import com.example.nativelib.network.CrashBatchRequest
 import com.example.nativelib.network.CrashBatchResponse
 import com.example.nativelib.network.NetworkResult
+import com.example.nativelib.config.NativeServiceConfig
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import java.nio.charset.StandardCharsets
@@ -23,7 +24,7 @@ internal data class CrashFlushReport(
 internal class CrashUploader(
     private val queue: FileCrashQueue,
     private val sender: CrashBatchSender,
-    private val config: CrashReporterConfig,
+    private val config: NativeServiceConfig,
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().create(),
     private val clock: () -> Long = { System.currentTimeMillis() },
     private val requestIdGenerator: () -> String = { UUID.randomUUID().toString() },
@@ -47,7 +48,7 @@ internal class CrashUploader(
     }
 
     private fun selectBatch(nowMillis: Long): SelectedBatch? {
-        val candidates = queue.peekBatch(config.batchSize, nowMillis)
+        val candidates = queue.peekBatch(config.crashBatchSize, nowMillis)
         if (candidates.isEmpty()) {
             return null
         }
@@ -58,7 +59,7 @@ internal class CrashUploader(
             val tentativeEvents = selected.map { it.record.event } + candidate.record.event
             val tentativeRequest = CrashBatchRequest(requestId, tentativeEvents)
             val size = gson.toJson(tentativeRequest).toByteArray(StandardCharsets.UTF_8).size
-            if (size > config.maxBatchBytes) {
+            if (size > config.crashMaxBatchBytes) {
                 if (selected.isEmpty()) {
                     queue.moveToDeadLetter(listOf(candidate), "event_too_large")
                     logger("crash event moved to dead letter: size=$size")

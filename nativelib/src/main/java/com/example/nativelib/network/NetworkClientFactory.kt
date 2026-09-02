@@ -14,6 +14,7 @@ class NetworkClientFactory private constructor(
     val okHttpClient: OkHttpClient
     val retrofit: Retrofit
     val crashNetworkClient: CrashNetworkClient
+    val jankArtifactNetworkClient: JankArtifactNetworkClient
 
     init {
         okHttpClient = buildOkHttpClient(config)
@@ -26,11 +27,24 @@ class NetworkClientFactory private constructor(
                 ),
             )
             .build()
-        crashNetworkClient = CrashNetworkClient(retrofit.create(CrashIngestApi::class.java))
+        crashNetworkClient = CrashNetworkClient(
+            retrofit.create(CrashIngestApi::class.java),
+            config.schemaVersion,
+        )
+        jankArtifactNetworkClient = JankArtifactNetworkClient(
+            retrofit.create(JankArtifactIngestApi::class.java),
+        )
     }
 
     companion object {
         fun create(config: NetworkConfig): NetworkClientFactory = NetworkClientFactory(config)
+    }
+
+    /** 统一 SDK 关闭或初始化回滚时释放 OkHttp 自建资源。 */
+    internal fun close() {
+        okHttpClient.dispatcher.executorService.shutdown()
+        okHttpClient.connectionPool.evictAll()
+        okHttpClient.cache?.close()
     }
 
     private fun buildOkHttpClient(config: NetworkConfig): OkHttpClient {
@@ -39,13 +53,13 @@ class NetworkClientFactory private constructor(
             .readTimeout(config.readTimeoutMillis, TimeUnit.MILLISECONDS)
             .writeTimeout(config.writeTimeoutMillis, TimeUnit.MILLISECONDS)
             .retryOnConnectionFailure(false)
-            .addInterceptor(ProjectKeyInterceptor(config.projectKey, config.schemaVersion))
+            .addInterceptor(AppKeyInterceptor(config.appKey))
             .apply {
                 if (config.enableLogging) {
                     addInterceptor(
                         HttpLoggingInterceptor().apply {
                             level = HttpLoggingInterceptor.Level.BASIC
-                            redactHeader(PROJECT_KEY_HEADER)
+                            redactHeader(APP_KEY_HEADER)
                             redactHeader("Authorization")
                         },
                     )
@@ -54,15 +68,13 @@ class NetworkClientFactory private constructor(
             .build()
     }
 
-    private class ProjectKeyInterceptor(
-        private val projectKey: String,
-        private val schemaVersion: Int,
+    private class AppKeyInterceptor(
+        private val appKey: String,
     ) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
             val request = chain.request()
                 .newBuilder()
-                .header(PROJECT_KEY_HEADER, projectKey)
-                .header(SCHEMA_VERSION_HEADER, schemaVersion.toString())
+                .header(APP_KEY_HEADER, appKey)
                 .build()
             return chain.proceed(request)
         }
@@ -70,5 +82,4 @@ class NetworkClientFactory private constructor(
 
 }
 
-private const val PROJECT_KEY_HEADER = "X-Project-Key"
-private const val SCHEMA_VERSION_HEADER = "X-Schema-Version"
+private const val APP_KEY_HEADER = "X-App-Key"

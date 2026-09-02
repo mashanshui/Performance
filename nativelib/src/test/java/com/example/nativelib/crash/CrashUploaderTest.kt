@@ -1,5 +1,6 @@
 package com.example.nativelib.crash
 
+import com.example.nativelib.config.NativeServiceConfig
 import com.example.nativelib.network.BatchError
 import com.example.nativelib.network.CrashBatchResponse
 import com.example.nativelib.network.CrashEvent
@@ -95,16 +96,23 @@ class CrashUploaderTest {
         return CrashUploader(
             queue = queue,
             sender = sender,
-            config = CrashReporterConfig(
+            config = NativeServiceConfig(
                 baseUrl = "https://example.test/",
-                projectKey = "project-key",
-                appId = "demo-app",
-                appVersion = "1.0",
-                versionCode = 1,
-                buildId = "build-1",
+                appKey = "test-app-key",
                 environment = "test",
                 channel = "unit-test",
-                applicationPackage = "com.example.performance",
+                schemaVersion = 1,
+                enableNetworkLogging = false,
+                connectTimeoutMillis = 3_000L,
+                readTimeoutMillis = 3_000L,
+                writeTimeoutMillis = 3_000L,
+                crashEnabled = true,
+                crashBatchSize = 20,
+                crashMaxBatchBytes = 512 * 1024,
+                crashUploadIntervalMillis = 30_000L,
+                jankEnabled = true,
+                jankUploadIntervalMillis = 30_000L,
+                jankMaxArtifactBytes = 64L * 1024L * 1024L,
             ),
             clock = { 1_726_000_000_000 },
             requestIdGenerator = { "request-1" },

@@ -4,6 +4,7 @@ import com.example.nativelib.network.CrashEvent
 import com.example.nativelib.network.CrashPayload
 import com.example.nativelib.network.StackFrame
 import com.example.nativelib.network.ThrowableNode
+import com.example.nativelib.config.NativeServiceConfig
 import java.util.IdentityHashMap
 import java.util.UUID
 
@@ -14,6 +15,7 @@ internal data class CrashDeviceInfo(
 
 internal class CrashEventFactory(
     private val config: CrashReporterConfig,
+    private val serviceConfig: NativeServiceConfig,
     private val sessionId: String,
     private val anonymousDeviceId: String,
     private val deviceInfo: CrashDeviceInfo,
@@ -49,7 +51,7 @@ internal class CrashEventFactory(
         occurredAt: Long,
     ): CrashEvent {
         return CrashEvent(
-            schemaVersion = config.schemaVersion,
+            schemaVersion = serviceConfig.schemaVersion,
             eventId = eventId.take(MAX_EVENT_ID_LENGTH),
             eventType = eventType,
             occurredAt = occurredAt,
@@ -59,8 +61,8 @@ internal class CrashEventFactory(
             appVersion = config.appVersion.take(MAX_TEXT_LENGTH),
             versionCode = config.versionCode,
             buildId = config.buildId.take(MAX_BUILD_ID_LENGTH),
-            environment = config.environment.take(MAX_TEXT_LENGTH),
-            channel = config.channel.take(MAX_CHANNEL_LENGTH),
+            environment = serviceConfig.environment.take(MAX_TEXT_LENGTH),
+            channel = serviceConfig.channel.take(MAX_CHANNEL_LENGTH),
             osVersion = deviceInfo.osVersion.take(MAX_TEXT_LENGTH),
             deviceModel = deviceInfo.deviceModel.take(MAX_DEVICE_MODEL_LENGTH),
             networkType = networkTypeProvider()?.take(MAX_NETWORK_TYPE_LENGTH),

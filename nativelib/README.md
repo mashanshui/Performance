@@ -1,0 +1,105 @@
+# nativelib 本地发布
+
+`nativelib` 已配置 Android Library 的 Maven 发布能力，默认发布 `release` 变体。
+
+## 统一初始化
+
+应用只需要在 `Application.onCreate()` 中传入 `Application` 和 App Key：
+
+```kotlin
+val performance = PerformanceSdk.initialize(this, appKey)
+Log.i("Performance", "jankAvailable=${performance.isJankAvailable}")
+```
+
+Crash 和线上卡顿默认同时启用。服务地址、环境、渠道、网络超时、Crash 批量参数以及
+Rhea 采样参数都可以通过统一配置覆盖：
+
+默认值为：服务地址 `http://192.168.0.150:8080`、环境 `debug`、渠道 `official`、
+网络连接/读写超时 3 秒且关闭网络日志；Crash 每批 20 条、单批 512 KiB、每 30 秒上传；
+Jank 使用 5 MiB 缓冲区、10 ms 采样间隔、20 MiB 磁盘额度、3 天 TTL、10 MiB 单文件限制，
+仅前台采集，Hook、对象分配和统计均关闭。
+
+```kotlin
+val performance = PerformanceSdk.initialize(
+    application = this,
+    appKey = appKey,
+    config = PerformanceConfig(
+        service = ServiceConfig(
+            baseUrl = "https://apm.example.com",
+            environment = "release",
+            channel = "official",
+        ),
+        crash = CrashConfig(
+            uploadIntervalMillis = 60_000L,
+        ),
+        jank = JankConfig(
+            minSampleIntervalMillis = 5L,
+            enableStackCaptureStats = true,
+            mappingId = "mapping-2026-09",
+        ),
+    ),
+)
+```
+
+包名、版本名、versionCode、buildId 和匿名设备 ID 默认从当前 Application 自动解析或持久化，
+不需要应用层重复维护。设备不满足 Rhea 的线上采集条件时，`isJankAvailable` 为 `false`，
+Crash 仍会继续工作；配置错误或真正的初始化错误会抛出
+`PerformanceInitializationException`。
+
+导出卡顿时使用 SDK 门面，导出成功的 ZIP 会自动写入持久上传队列：
+
+```kotlin
+val requestResult = performance.exportAndEnqueue(event) { result ->
+    Log.i("Performance", "queued=${result.queued}")
+}
+```
+
+App Key 不写入库文件或日志，仅在运行期请求头中使用。示例应用通过本地 Gradle 属性
+`performance.appKey` 注入；直接把 App Key 写入 APK 仍不能阻止逆向提取，生产环境应按服务端
+密钥策略管理。
+
+## 发布到 Maven Local
+
+在项目根目录执行：
+
+```powershell
+.\gradlew.bat :nativelib:publishToMavenLocal --no-daemon
+```
+
+默认坐标为：
+
+```text
+com.example.nativelib:nativelib:1.0.0
+```
+
+也可以在发布时覆盖坐标：
+
+```powershell
+.\gradlew.bat :nativelib:publishToMavenLocal `
+    -Pnativelib.groupId=io.example `
+    -Pnativelib.artifactId=nativelib `
+    -Pnativelib.version=1.0.1 `
+    --no-daemon
+```
+
+产物默认位于当前用户的 Maven Local 仓库：
+
+```text
+%USERPROFILE%\.m2\repository\com\example\nativelib\nativelib\1.0.0\
+```
+
+## 本地消费者配置
+
+消费者的仓库列表需要包含 `mavenLocal()`，并声明发布坐标：
+
+```kotlin
+repositories {
+    mavenLocal()
+    google()
+    mavenCentral()
+}
+
+dependencies {
+    implementation("com.example.nativelib:nativelib:1.0.0")
+}
+```

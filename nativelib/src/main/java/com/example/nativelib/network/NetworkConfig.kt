@@ -3,10 +3,10 @@ package com.example.nativelib.network
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
-/** 网络层运行配置。项目 Key 只用于请求头，不应写入日志。 */
+/** 网络层运行配置。App Key 只用于请求头，不应写入日志。 */
 data class NetworkConfig(
     val baseUrl: String,
-    val projectKey: String,
+    val appKey: String,
     val schemaVersion: Int = 1,
     val connectTimeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
     val readTimeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
@@ -16,7 +16,7 @@ data class NetworkConfig(
     internal val normalizedBaseUrl: HttpUrl = normalizeBaseUrl(baseUrl)
 
     init {
-        require(projectKey.isNotBlank()) { "projectKey must not be blank" }
+        require(appKey.isNotBlank()) { "appKey must not be blank" }
         require(schemaVersion > 0) { "schemaVersion must be positive" }
         require(connectTimeoutMillis > 0) { "connectTimeoutMillis must be positive" }
         require(readTimeoutMillis > 0) { "readTimeoutMillis must be positive" }
@@ -24,9 +24,10 @@ data class NetworkConfig(
     }
 
     override fun toString(): String {
+        val safeBaseUrl = baseUrl.replace(appKey, "<redacted>")
         return "NetworkConfig(" +
-            "baseUrl='$baseUrl', " +
-            "projectKey=<redacted>, " +
+            "baseUrl='$safeBaseUrl', " +
+            "appKey=<redacted>, " +
             "schemaVersion=$schemaVersion, " +
             "connectTimeoutMillis=$connectTimeoutMillis, " +
             "readTimeoutMillis=$readTimeoutMillis, " +

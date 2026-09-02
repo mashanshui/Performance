@@ -5,8 +5,8 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.os.Build
 import android.util.Log
+import com.example.nativelib.config.NativeServiceConfig
 import com.example.nativelib.network.NetworkClientFactory
-import com.example.nativelib.network.NetworkConfig
 import java.io.Closeable
 import java.io.File
 import java.util.UUID
@@ -14,13 +14,13 @@ import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 
-class CrashReporter private constructor(
+internal class CrashReporter private constructor(
     private val context: Context,
     private val config: CrashReporterConfig,
+    private val serviceConfig: NativeServiceConfig,
     private val queue: FileCrashQueue,
     private val eventFactory: CrashEventFactory,
     private val uploader: CrashUploader,
@@ -46,6 +46,9 @@ class CrashReporter private constructor(
     }
 
     fun flushAsync() {
+        if (scheduler.isShutdown) {
+            return
+        }
         scheduler.execute { flushInBackground() }
     }
 
@@ -57,7 +60,6 @@ class CrashReporter private constructor(
         if (Thread.getDefaultUncaughtExceptionHandler() === uncaughtExceptionHandler) {
             Thread.setDefaultUncaughtExceptionHandler(previousExceptionHandler)
         }
-        instance.compareAndSet(this, null)
     }
 
     private fun start() {
@@ -71,8 +73,8 @@ class CrashReporter private constructor(
         scheduler.schedule({ flushInBackground() }, 0, TimeUnit.MILLISECONDS)
         scheduler.scheduleAtFixedRate(
             { flushInBackground() },
-            config.uploadIntervalMillis,
-            config.uploadIntervalMillis,
+            serviceConfig.crashUploadIntervalMillis,
+            serviceConfig.crashUploadIntervalMillis,
             TimeUnit.MILLISECONDS,
         )
     }
@@ -159,64 +161,69 @@ class CrashReporter private constructor(
 
     companion object {
         private const val TAG = "CrashReporter"
-        private const val QUEUE_DIRECTORY = "performance-crash-reporter"
+        internal const val QUEUE_DIRECTORY = "performance-crash-reporter"
         private const val CRASH_HANDLER_FLUSH_TIMEOUT_MILLIS = 3_500L
-        private val instance = AtomicReference<CrashReporter?>()
 
-        @JvmStatic
-        fun initialize(context: Context, config: CrashReporterConfig): CrashReporter {
-            instance.get()?.let { return it }
-            synchronized(instance) {
-                instance.get()?.let { return it }
-                val applicationContext = context.applicationContext
-                val queueRoot = File(applicationContext.noBackupFilesDir, QUEUE_DIRECTORY)
-                val queue = FileCrashQueue(queueRoot)
-                val anonymousDeviceId = DeviceIdentityStore(
-                    File(queueRoot, "anonymous-device-id"),
-                ).getOrCreate()
-                val networkFactory = NetworkClientFactory.create(
-                    NetworkConfig(
-                        baseUrl = config.baseUrl,
-                        projectKey = config.projectKey,
-                        schemaVersion = config.schemaVersion,
-                        connectTimeoutMillis = config.connectTimeoutMillis,
-                        readTimeoutMillis = config.readTimeoutMillis,
-                        writeTimeoutMillis = config.writeTimeoutMillis,
-                        enableLogging = config.enableNetworkLogging,
-                    ),
-                )
-                val eventFactory = CrashEventFactory(
-                    config = config,
-                    sessionId = UUID.randomUUID().toString(),
-                    anonymousDeviceId = anonymousDeviceId,
-                    deviceInfo = CrashDeviceInfo(
-                        osVersion = Build.VERSION.RELEASE.orEmpty().ifBlank { "unknown" },
-                        deviceModel = Build.MODEL.orEmpty().ifBlank { "unknown" },
-                    ),
-                    networkTypeProvider = AndroidNetworkTypeProvider(applicationContext),
-                )
-                val uploader = CrashUploader(
-                    queue = queue,
-                    sender = CrashBatchSender { request ->
-                        networkFactory.crashNetworkClient.sendBatch(request)
-                    },
-                    config = config,
-                    logger = { message -> Log.w(TAG, message) },
-                )
-                val reporter = CrashReporter(
+        /** 由 PerformanceSdk 调用，使用统一初始化阶段创建 Crash Reporter。 */
+        internal fun start(
+            context: Context,
+            config: CrashReporterConfig,
+            serviceConfig: NativeServiceConfig,
+            networkFactory: NetworkClientFactory,
+            anonymousDeviceId: String,
+        ): CrashReporter {
+            val applicationContext = context.applicationContext
+            val queueRoot = File(applicationContext.noBackupFilesDir, QUEUE_DIRECTORY)
+            val queue = FileCrashQueue(queueRoot)
+            val eventFactory = CrashEventFactory(
+                config = config,
+                serviceConfig = serviceConfig,
+                sessionId = UUID.randomUUID().toString(),
+                anonymousDeviceId = anonymousDeviceId,
+                deviceInfo = CrashDeviceInfo(
+                    osVersion = Build.VERSION.RELEASE.orEmpty().ifBlank { "unknown" },
+                    deviceModel = Build.MODEL.orEmpty().ifBlank { "unknown" },
+                ),
+                networkTypeProvider = AndroidNetworkTypeProvider(applicationContext),
+            )
+            val uploader = CrashUploader(
+                queue = queue,
+                sender = CrashBatchSender { request ->
+                    networkFactory.crashNetworkClient.sendBatch(request)
+                },
+                config = serviceConfig,
+                logger = { message -> Log.w(TAG, message) },
+            )
+            val scheduler = Executors.newSingleThreadScheduledExecutor { runnable ->
+                Thread(runnable, "crash-upload").apply { isDaemon = true }
+            }
+            val previousExceptionHandler = Thread.getDefaultUncaughtExceptionHandler()
+            return try {
+                CrashReporter(
                     context = applicationContext,
                     config = config,
+                    serviceConfig = serviceConfig,
                     queue = queue,
                     eventFactory = eventFactory,
                     uploader = uploader,
-                    scheduler = Executors.newSingleThreadScheduledExecutor { runnable ->
-                        Thread(runnable, "crash-upload").apply { isDaemon = true }
-                    },
-                    previousExceptionHandler = Thread.getDefaultUncaughtExceptionHandler(),
+                    scheduler = scheduler,
+                    previousExceptionHandler = previousExceptionHandler,
                 )
-                instance.set(reporter)
-                return reporter
+            } catch (throwable: Throwable) {
+                scheduler.shutdownNow()
+                if (Thread.getDefaultUncaughtExceptionHandler() !== previousExceptionHandler) {
+                    Thread.setDefaultUncaughtExceptionHandler(previousExceptionHandler)
+                }
+                throw throwable
             }
         }
+
+        /** Crash/Jank 共用的持久匿名设备标识，仍沿用 Crash 队列目录以保留已有身份。 */
+        internal fun loadAnonymousDeviceId(context: Context): String {
+            val applicationContext = context.applicationContext
+            val queueRoot = File(applicationContext.noBackupFilesDir, QUEUE_DIRECTORY)
+            return DeviceIdentityStore(File(queueRoot, "anonymous-device-id")).getOrCreate()
+        }
+
     }
 }

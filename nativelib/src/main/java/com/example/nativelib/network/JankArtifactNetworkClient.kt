@@ -2,16 +2,18 @@ package com.example.nativelib.network
 
 import com.google.gson.JsonParseException
 import com.google.gson.stream.MalformedJsonException
+import java.io.File
 import java.io.IOException
 import java.util.concurrent.CancellationException
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.asRequestBody
 
-class CrashNetworkClient internal constructor(
-    private val api: CrashIngestApi,
-    private val schemaVersion: Int = 1,
+class JankArtifactNetworkClient internal constructor(
+    private val api: JankArtifactIngestApi,
 ) {
-    suspend fun sendBatch(request: CrashBatchRequest): NetworkResult<CrashBatchResponse> {
+    suspend fun upload(artifact: File): NetworkResult<JankArtifactUploadResponse> {
         return try {
-            val response = api.ingest(schemaVersion, request)
+            val response = api.ingest(artifact.asRequestBody(JANK_ARTIFACT_MEDIA_TYPE))
             if (response.isSuccessful) {
                 val body = response.body()
                 if (body == null) {
@@ -25,7 +27,7 @@ class CrashNetworkClient internal constructor(
                 NetworkResult.HttpError(
                     statusCode = response.code(),
                     responseBody = response.errorBody()?.string()?.take(MAX_ERROR_BODY_LENGTH),
-                    retryable = isRetryableStatus(response.code()),
+                    retryable = response.code() == 503,
                     retryAfterSeconds = response.headers()[RETRY_AFTER_HEADER]
                         ?.trim()
                         ?.toLongOrNull()
@@ -48,9 +50,7 @@ class CrashNetworkClient internal constructor(
     private companion object {
         const val MAX_ERROR_BODY_LENGTH = 8 * 1024
         const val RETRY_AFTER_HEADER = "Retry-After"
-
-        fun isRetryableStatus(statusCode: Int): Boolean {
-            return statusCode == 408 || statusCode == 429 || statusCode in 500..599
-        }
+        val JANK_ARTIFACT_MEDIA_TYPE =
+            "application/vnd.shanshui.rheajank+zip".toMediaType()
     }
 }

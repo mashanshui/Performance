@@ -1,6 +1,7 @@
 package com.example.nativelib.network
 
 import com.google.gson.JsonParser
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -11,9 +12,14 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class NetworkClientTest {
+    @get:Rule
+    val temporaryFolder = TemporaryFolder()
+
     private lateinit var server: MockWebServer
 
     @Before
@@ -59,7 +65,7 @@ class NetworkClientTest {
         val recordedRequest = server.takeRequest()
         assertEquals("POST", recordedRequest.method)
         assertEquals("/api/ingest/v1/batches", recordedRequest.path)
-        assertEquals("secret-project-key", recordedRequest.getHeader("X-Project-Key"))
+        assertEquals("secret-app-key", recordedRequest.getHeader("X-App-Key"))
         assertEquals("7", recordedRequest.getHeader("X-Schema-Version"))
         assertTrue(recordedRequest.getHeader("Content-Type").orEmpty().startsWith("application/json"))
 
@@ -160,7 +166,66 @@ class NetworkClientTest {
     }
 
     @Test
-    fun loggingDoesNotExposeProjectKeyOrRequestBody() {
+    fun uploadJankArtifactStreamsRawZipWithDedicatedContractHeaders() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{\"success\":true,\"status\":\"accepted\"}"),
+        )
+        val bytes = byteArrayOf(0x50, 0x4b, 0x03, 0x04, 0x01, 0x02)
+        val artifact = File(temporaryFolder.root, "event-1.rheajank.zip")
+        artifact.writeBytes(bytes)
+        val client = NetworkClientFactory.create(
+            NetworkConfig(
+                baseUrl = server.url("/api").toString(),
+                appKey = "secret-app-key",
+                schemaVersion = 7,
+            ),
+        ).jankArtifactNetworkClient
+
+        val result = runBlocking { client.upload(artifact) }
+
+        assertTrue(result is NetworkResult.Success)
+        assertEquals("accepted", (result as NetworkResult.Success).data.status)
+        val recordedRequest = server.takeRequest()
+        assertEquals("POST", recordedRequest.method)
+        assertEquals("/api/ingest/v1/stack-artifacts:parse", recordedRequest.path)
+        assertEquals("secret-app-key", recordedRequest.getHeader("X-App-Key"))
+        assertEquals(null, recordedRequest.getHeader("X-Schema-Version"))
+        assertEquals(null, recordedRequest.getHeader("X-Mapping-Id"))
+        assertEquals(
+            "application/vnd.shanshui.rheajank+zip",
+            recordedRequest.getHeader("Content-Type"),
+        )
+        assertTrue(recordedRequest.getHeader("Content-Type").orEmpty().contains("multipart").not())
+        assertTrue(recordedRequest.body.readByteArray().contentEquals(bytes))
+    }
+
+    @Test
+    fun uploadJankArtifactReturnsSerializationErrorForInvalidJson() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{invalid-json"),
+        )
+        val artifact = File(temporaryFolder.root, "event-invalid.rheajank.zip")
+        artifact.writeBytes(byteArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val client = NetworkClientFactory.create(
+            NetworkConfig(
+                baseUrl = server.url("/").toString(),
+                appKey = "secret-app-key",
+            ),
+        ).jankArtifactNetworkClient
+
+        val result = runBlocking { client.upload(artifact) }
+
+        assertTrue(result is NetworkResult.SerializationError)
+    }
+
+    @Test
+    fun loggingDoesNotExposeAppKeyOrRequestBody() {
         server.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -172,7 +237,7 @@ class NetworkClientTest {
             NetworkClientFactory.create(
                 NetworkConfig(
                     baseUrl = server.url("/api").toString(),
-                    projectKey = "secret-project-key",
+                    appKey = "secret-app-key",
                     enableLogging = true,
                 ),
             ).crashNetworkClient.sendBatch(sampleRequest())
@@ -185,16 +250,16 @@ class NetworkClientTest {
     fun networkConfigNormalizesBaseUrlAndRejectsInvalidValues() {
         val config = NetworkConfig(
             baseUrl = server.url("/api").toString().removeSuffix("/"),
-            projectKey = "key",
+            appKey = "key",
         )
         assertNotNull(config.normalizedBaseUrl)
         assertTrue(config.normalizedBaseUrl.toString().endsWith("/api/"))
 
         assertThrows(IllegalArgumentException::class.java) {
-            NetworkConfig(baseUrl = "not a url", projectKey = "key")
+            NetworkConfig(baseUrl = "not a url", appKey = "key")
         }
         assertThrows(IllegalArgumentException::class.java) {
-            NetworkConfig(baseUrl = server.url("/").toString(), projectKey = " ")
+            NetworkConfig(baseUrl = server.url("/").toString(), appKey = " ")
         }
         assertTrue(config.toString().contains("<redacted>"))
         assertFalse(config.toString().contains("key"))
@@ -206,7 +271,7 @@ class NetworkClientTest {
         return NetworkClientFactory.create(
             NetworkConfig(
                 baseUrl = server.url("/api").toString(),
-                projectKey = "secret-project-key",
+                appKey = "secret-app-key",
                 schemaVersion = schemaVersion,
             ),
         ).crashNetworkClient

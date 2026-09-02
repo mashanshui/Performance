@@ -1,5 +1,6 @@
 package com.example.nativelib.crash
 
+import com.example.nativelib.config.NativeServiceConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -11,6 +12,7 @@ class CrashEventFactoryTest {
     fun crashEventSanitizesMessageAndLimitsThrowablePayload() {
         val factory = CrashEventFactory(
             config = testConfig(),
+            serviceConfig = testServiceConfig(),
             sessionId = "session-1",
             anonymousDeviceId = "install-1",
             deviceInfo = CrashDeviceInfo("35", "Pixel Test"),
@@ -52,6 +54,7 @@ class CrashEventFactoryTest {
     fun appStartEventHasNoCrashPayloadAndUsesCommonSessionMetadata() {
         val factory = CrashEventFactory(
             config = testConfig(),
+            serviceConfig = testServiceConfig(),
             sessionId = "session-1",
             anonymousDeviceId = "install-1",
             deviceInfo = CrashDeviceInfo("35", "Pixel Test"),
@@ -71,15 +74,32 @@ class CrashEventFactoryTest {
 
     private fun testConfig(): CrashReporterConfig {
         return CrashReporterConfig(
-            baseUrl = "https://example.test/",
-            projectKey = "project-key",
             appId = "demo-app",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",
+            applicationPackage = "com.example.performance",
+        )
+    }
+
+    private fun testServiceConfig(): NativeServiceConfig {
+        return NativeServiceConfig(
+            baseUrl = "https://example.test/",
+            appKey = "test-app-key",
             environment = "test",
             channel = "unit-test",
-            applicationPackage = "com.example.performance",
+            schemaVersion = 1,
+            enableNetworkLogging = false,
+            connectTimeoutMillis = 3_000L,
+            readTimeoutMillis = 3_000L,
+            writeTimeoutMillis = 3_000L,
+            crashEnabled = true,
+            crashBatchSize = 20,
+            crashMaxBatchBytes = 512 * 1024,
+            crashUploadIntervalMillis = 30_000L,
+            jankEnabled = true,
+            jankUploadIntervalMillis = 30_000L,
+            jankMaxArtifactBytes = 64L * 1024L * 1024L,
         )
     }
 }

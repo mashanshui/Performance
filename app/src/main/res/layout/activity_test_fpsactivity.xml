@@ -7,20 +7,62 @@
     android:layout_height="match_parent"
     tools:context=".TestFPSActivity">
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/recyclerView"
+    <LinearLayout
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:orientation="vertical"
+        android:padding="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent">
 
-    <Button
-        android:id="@+id/button1"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        <TextView
+            android:id="@+id/titleTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="FPS 真机测试"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/statusTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="空闲场景：等待测试"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/startAutoScrollButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="开始自动滚动" />
+
+        <Button
+            android:id="@+id/stopAutoScrollButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="停止滚动" />
+
+        <Button
+            android:id="@+id/injectSlowFrameButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="注入慢帧（约 120ms）" />
+
+        <Button
+            android:id="@+id/restoreDefaultSceneButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="恢复默认场景" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="8dp"
+            android:layout_weight="1" />
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

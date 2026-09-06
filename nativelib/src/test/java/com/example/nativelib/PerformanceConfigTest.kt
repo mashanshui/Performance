@@ -7,6 +7,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class PerformanceConfigTest {
+    /** 验证默认 FPS、Crash 和 Jank 配置与文档保持一致。 */
     @Test
     fun defaultsMatchDocumentedCrashAndJankSettings() {
         val config = PerformanceConfig()
@@ -27,8 +28,15 @@ class PerformanceConfigTest {
         assertTrue(config.jank.foregroundOnly)
         assertFalse(config.jank.enableObjectAllocation)
         assertFalse(config.jank.enableStackCaptureStats)
+        assertTrue(config.jank.fps.enabled)
+        assertEquals(FpsLogLevel.OFF, config.jank.fps.logLevel)
+        assertEquals(
+            FpsConfig.DEFAULT_SNAPSHOT_INTERVAL_MILLIS,
+            config.jank.fps.snapshotIntervalMillis,
+        )
     }
 
+    /** 验证自定义 Jank 参数仍能转换为 Rhea 配置。 */
     @Test
     fun customJankSettingsBuildTheRheaConfig() {
         val jank = JankConfig(
@@ -72,6 +80,7 @@ class PerformanceConfigTest {
         assertEquals("beta", actual.channel)
     }
 
+    /** 验证非法 FPS 边界在 reporter 初始化前被拒绝。 */
     @Test
     fun invalidPublicLimitsAreRejected() {
         assertThrows(IllegalArgumentException::class.java) {
@@ -85,6 +94,9 @@ class PerformanceConfigTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             JankConfig(maxArtifactBytes = JankConfig.MAX_ARTIFACT_BYTES + 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            JankConfig(fps = FpsConfig(maxBatchBytes = FpsConfig.MAX_BATCH_BYTES + 1))
         }
     }
 }

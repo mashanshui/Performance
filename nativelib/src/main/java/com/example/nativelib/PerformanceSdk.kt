@@ -1,6 +1,7 @@
 package com.example.nativelib
 
 import android.app.Application
+import android.app.Activity
 import android.util.Log
 import com.bytedance.rheatrace.RheaTrace3
 import com.example.nativelib.config.toNativeServiceConfig
@@ -8,6 +9,7 @@ import com.example.nativelib.crash.CrashReporter
 import com.example.nativelib.crash.CrashReporterConfig
 import com.example.nativelib.jank.JankArtifactExportCallback
 import com.example.nativelib.jank.JankArtifactReporter
+import com.example.nativelib.fps.FpsReporter
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.Closeable
 import java.security.MessageDigest
@@ -21,6 +23,7 @@ enum class PerformanceInitializationStage {
     NETWORK,
     CRASH,
     JANK,
+    FPS,
 }
 
 /** SDK 初始化失败；异常消息只包含阶段和非敏感状态，不包含 App Key。 */
@@ -42,6 +45,7 @@ class PerformanceSdk private constructor(
     private val crashReporter: CrashReporter?,
     private val networkFactory: NetworkClientFactory,
     private val jankReporterReady: Boolean,
+    private val fpsReporter: FpsReporter?,
     private val traceStartedBySdk: Boolean,
     private val appKeyFingerprint: String,
     private val config: PerformanceConfig,
@@ -57,6 +61,10 @@ class PerformanceSdk private constructor(
     val jankInitResult: RheaTrace3.InitResult
         get() = jankResult
 
+    /** FPS API 24+ 且配置可用时为 true；关闭 SDK 后返回 false。 */
+    val isFpsAvailable: Boolean
+        get() = fpsReporter?.isAvailable == true && !closed.get()
+
     /** 异步触发 Crash 与 Jank 队列刷新。 */
     fun flushAsync() {
         if (closed.get()) {
@@ -66,6 +74,7 @@ class PerformanceSdk private constructor(
         if (jankReporterReady) {
             JankArtifactReporter.flushAsync()
         }
+        fpsReporter?.flushAsync()
     }
 
     /** 刷新队列的便捷别名；实际发送仍在后台线程执行。 */
@@ -73,10 +82,20 @@ class PerformanceSdk private constructor(
         flushAsync()
     }
 
+    /** 返回 Crash 封存队列中的待上传事件数量。 */
     fun pendingCrashEventCount(): Int = crashReporter?.pendingEventCount() ?: 0
 
+    /** 返回 Jank ZIP 封存队列中的待上传产物数量。 */
     fun pendingJankArtifactCount(): Int {
         return if (jankReporterReady) JankArtifactReporter.pendingArtifactCount() else 0
+    }
+
+    /** 返回 FPS 封存队列中的待上传事件数量。 */
+    fun pendingFpsEventCount(): Int = fpsReporter?.pendingEventCount() ?: 0
+
+    /** 为指定 Activity 设置 FPS 场景名；传 null 恢复 Activity 完整类名。 */
+    fun setFpsScene(activity: Activity, scene: String?) {
+        fpsReporter?.setFpsScene(activity, scene)
     }
 
     /** 导出卡顿并写入持久上传队列；Jank 不可用时返回 NOT_INITIALIZED。 */
@@ -90,6 +109,7 @@ class PerformanceSdk private constructor(
         return JankArtifactReporter.exportAndEnqueue(event, callback)
     }
 
+    /** 在调用线程完成生命周期解绑，在 reporter 自有后台线程封存队列并释放网络资源。 */
     override fun close() {
         if (!closed.compareAndSet(false, true)) {
             return
@@ -103,6 +123,9 @@ class PerformanceSdk private constructor(
                 }
             }.onFailure { logCloseFailure("jank") }
             runCatching {
+                fpsReporter?.close()
+            }.onFailure { logCloseFailure("fps") }
+            runCatching {
                 crashReporter?.close()
             }.onFailure { logCloseFailure("crash") }
             if (traceStartedBySdk) {
@@ -114,6 +137,7 @@ class PerformanceSdk private constructor(
         }
     }
 
+    /** 记录资源关闭失败的稳定组件名，不输出底层异常正文。 */
     private fun logCloseFailure(component: String) {
         Log.w(TAG, "unable to close $component reporter")
     }
@@ -176,9 +200,14 @@ class PerformanceSdk private constructor(
                 }
 
                 var crashReporter: CrashReporter? = null
+                var fpsReporter: FpsReporter? = null
                 var jankReporterReady = false
                 var traceStartedBySdk = false
                 var jankResult = RheaTrace3.InitResult.DISABLED
+                // 低版本和子进程不创建 reporter，避免共享队列被多个进程同时恢复或上传。
+                val fpsProcessAvailable = runCatching {
+                    FpsReporter.isProcessAvailable(application)
+                }.getOrDefault(false)
                 try {
                     val anonymousDeviceId = if (
                         serviceConfig.crashEnabled || serviceConfig.jankEnabled
@@ -249,11 +278,24 @@ class PerformanceSdk private constructor(
                         }
                     }
 
+                    if (serviceConfig.fpsEnabled && fpsProcessAvailable) {
+                        fpsReporter = componentFactory.initializeFps(
+                            application = application,
+                            serviceConfig = serviceConfig,
+                            fpsConfig = config.jank.fps,
+                            metadata = metadata,
+                            buildId = buildId,
+                            anonymousDeviceId = anonymousDeviceId,
+                            networkFactory = networkFactory,
+                        )
+                    }
+
                     val sdk = PerformanceSdk(
                         componentFactory = componentFactory,
                         crashReporter = crashReporter,
                         networkFactory = networkFactory,
                         jankReporterReady = jankReporterReady,
+                        fpsReporter = fpsReporter,
                         traceStartedBySdk = traceStartedBySdk,
                         appKeyFingerprint = fingerprint(normalizedAppKey),
                         config = config,
@@ -266,6 +308,7 @@ class PerformanceSdk private constructor(
                         componentFactory,
                         crashReporter,
                         jankReporterReady,
+                        fpsReporter,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -275,6 +318,7 @@ class PerformanceSdk private constructor(
                         componentFactory,
                         crashReporter,
                         jankReporterReady,
+                        fpsReporter,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -282,6 +326,9 @@ class PerformanceSdk private constructor(
                         when {
                             crashReporter == null && serviceConfig.crashEnabled ->
                                 PerformanceInitializationStage.CRASH
+
+                            fpsReporter == null && serviceConfig.fpsEnabled && fpsProcessAvailable ->
+                                PerformanceInitializationStage.FPS
 
                             serviceConfig.jankEnabled -> PerformanceInitializationStage.JANK
                             else -> PerformanceInitializationStage.NETWORK
@@ -293,16 +340,19 @@ class PerformanceSdk private constructor(
             }
         }
 
+        /** 初始化失败时按已完成阶段逆序释放 Reporter、Rhea 和网络资源。 */
         private fun rollback(
             componentFactory: PerformanceComponentFactory,
             crashReporter: CrashReporter?,
             jankReporterReady: Boolean,
+            fpsReporter: FpsReporter?,
             traceStartedBySdk: Boolean,
             networkFactory: NetworkClientFactory,
         ) {
             if (jankReporterReady) {
                 runCatching { componentFactory.closeJank() }
             }
+            fpsReporter?.let { runCatching { it.close() } }
             crashReporter?.let { runCatching { it.close() } }
             if (traceStartedBySdk) {
                 runCatching { componentFactory.stopRhea() }
@@ -310,6 +360,7 @@ class PerformanceSdk private constructor(
             runCatching { networkFactory.close() }
         }
 
+        /** 校验重复初始化使用完全相同的 App Key 指纹和配置，保证幂等返回。 */
         private fun PerformanceSdk.requireSameInitialization(
             appKey: String,
             requestedConfig: PerformanceConfig,
@@ -322,6 +373,7 @@ class PerformanceSdk private constructor(
             return this
         }
 
+        /** 计算 App Key 的不可逆指纹，仅用于同进程重复初始化比较。 */
         private fun fingerprint(value: String): String {
             val digest = MessageDigest.getInstance("SHA-256")
                 .digest(value.toByteArray(Charsets.UTF_8))

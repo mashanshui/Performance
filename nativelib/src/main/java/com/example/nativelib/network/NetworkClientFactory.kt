@@ -15,6 +15,7 @@ class NetworkClientFactory private constructor(
     val retrofit: Retrofit
     val crashNetworkClient: CrashNetworkClient
     val jankArtifactNetworkClient: JankArtifactNetworkClient
+    internal val fpsNetworkClient: FpsNetworkClient
 
     init {
         okHttpClient = buildOkHttpClient(config)
@@ -33,6 +34,9 @@ class NetworkClientFactory private constructor(
         )
         jankArtifactNetworkClient = JankArtifactNetworkClient(
             retrofit.create(JankArtifactIngestApi::class.java),
+        )
+        fpsNetworkClient = FpsNetworkClient(
+            retrofit.create(FpsIngestApi::class.java),
         )
     }
 

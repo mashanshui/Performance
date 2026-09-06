@@ -2,6 +2,7 @@ package com.example.nativelib
 
 import android.app.Application
 import com.bytedance.rheatrace.RheaTrace3
+import com.example.nativelib.fps.FpsReporter
 import com.example.nativelib.config.NativeServiceConfig
 import com.example.nativelib.config.toNetworkConfig
 import com.example.nativelib.crash.CrashReporter
@@ -35,6 +36,17 @@ internal interface PerformanceComponentFactory {
         networkFactory: NetworkClientFactory,
         onlineTraceConfig: RheaTrace3.OnlineTraceConfig,
     ): JankArtifactInitResult
+
+    /** 创建 Activity 生命周期驱动的 FPS reporter。 */
+    fun initializeFps(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        fpsConfig: FpsConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    ): FpsReporter
 
     fun closeJank()
 
@@ -78,6 +90,27 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             serviceConfig = serviceConfig,
             networkFactory = networkFactory,
             onlineTraceConfig = onlineTraceConfig,
+        )
+    }
+
+    /** 创建生产 FPS reporter，并复用统一网络工厂。 */
+    override fun initializeFps(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        fpsConfig: FpsConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    ): FpsReporter {
+        return FpsReporter.create(
+            application = application,
+            serviceConfig = serviceConfig,
+            fpsConfig = fpsConfig,
+            metadata = metadata,
+            buildId = buildId,
+            anonymousDeviceId = anonymousDeviceId,
+            networkFactory = networkFactory,
         )
     }
 

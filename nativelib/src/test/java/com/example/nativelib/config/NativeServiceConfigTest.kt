@@ -1,6 +1,8 @@
 package com.example.nativelib.config
 
 import com.example.nativelib.CrashConfig
+import com.example.nativelib.FpsConfig
+import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.JankConfig
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.ServiceConfig
@@ -11,6 +13,7 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class NativeServiceConfigTest {
+    /** 验证内部配置字符串不会暴露 App Key。 */
     @Test
     fun toStringRedactsAppKey() {
         val config = PerformanceConfig().toNativeServiceConfig("secret-app-key")
@@ -21,6 +24,7 @@ class NativeServiceConfigTest {
         assertFalse(text.contains("secret-app-key"))
     }
 
+    /** 验证公开默认值映射到内部服务配置。 */
     @Test
     fun defaultsMapToSharedInternalServiceConfig() {
         val config = PerformanceConfig().toNativeServiceConfig("test-app-key")
@@ -31,10 +35,14 @@ class NativeServiceConfigTest {
         assertEquals(CrashConfig.DEFAULT_BATCH_SIZE, config.crashBatchSize)
         assertEquals(CrashConfig.DEFAULT_MAX_BATCH_BYTES, config.crashMaxBatchBytes)
         assertEquals(JankConfig.DEFAULT_MAX_ARTIFACT_BYTES, config.jankMaxArtifactBytes)
+        assertTrue(config.fpsEnabled)
+        assertEquals(FpsLogLevel.OFF, config.fpsLogLevel)
+        assertEquals(FpsConfig.DEFAULT_BATCH_SIZE, config.fpsBatchSize)
         assertTrue(config.crashEnabled)
         assertTrue(config.jankEnabled)
     }
 
+    /** 验证嵌套服务配置和开关可以映射且不会泄露 App Key。 */
     @Test
     fun customNestedValuesMapWithoutLeakingAppKey() {
         val config = PerformanceConfig(
@@ -71,6 +79,7 @@ class NativeServiceConfigTest {
         assertFalse(actual.jankEnabled)
     }
 
+    /** 验证非法内部配置在 reporter 创建前被拦截。 */
     @Test
     fun invalidValuesAreRejectedBeforeReporterInitialization() {
         assertThrows(IllegalArgumentException::class.java) {

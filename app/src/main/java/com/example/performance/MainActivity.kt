@@ -13,15 +13,13 @@ import com.bytedance.rheatrace.RheaTrace3
 import com.example.nativelib.LooperMonitor
 import com.example.nativelib.NativeLib
 import com.example.nativelib.PerformanceSdk
-import com.example.nativelib.fps.FpsHelper
-import com.example.nativelib.thread.ThreadUtils
-import com.example.performance.demo.GcInhibitDemo
-import kotlin.jvm.java
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
     private val nativeLib by lazy { NativeLib() }
-    private var messageStartNs: Long = 0
+    private var messageStartNs: Long = 0L
+
+    /** 创建主页面并绑定卡顿测试、FPS 测试两个入口；执行线程为主线程。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -41,22 +39,21 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "onCreate: 2")
             }
         }
-//        thread {
-//            Log.e(TAG, "onCreate: " + Thread.currentThread().threadId())
-//            BindCoreUtils.bindCurrentThreadToMaxCore()
-//            var i = 0
-//            repeat(10000000){
-//                i++
-//            }
-//        }
-//        GcInhibitDemo().test()
-        startActivity(Intent(this, TestFPSActivity::class.java))
+        // FPS 页面通过显式入口打开，避免应用启动时直接改变当前验收页面。
+        findViewById<Button>(R.id.fpsTestButton).setOnClickListener {
+            startActivity(Intent(this, TestFPSActivity::class.java))
+        }
         LooperMonitor.sMainMonitor.register(object : LooperMonitor.LooperListener {
+            /** 记录一次主线程消息开始时间，供既有卡顿演示逻辑使用。 */
             override fun onMessageBegin(log: String) {
                 messageStartNs = SystemClock.elapsedRealtimeNanos()
             }
 
+            /** 在主线程消息超过阈值时导出既有卡顿事件。 */
             override fun onMessageEnd(log: String) {
+                if (messageStartNs == 0L) {
+                    return
+                }
                 val endNs = SystemClock.elapsedRealtimeNanos()
                 if (endNs > messageStartNs + 100000000) {
                     Log.e(TAG, "onMessageEnd: ")
@@ -72,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                         .setAttemptedSampleCount(1)
                         .build()
                     val exportRequest = PerformanceSdk.current()?.exportAndEnqueue(event) { uploadResult ->
+                        Log.e(TAG, "onMessageEnd: "+uploadResult.exportResult.artifact.path)
                         if (uploadResult.exportResult.isSuccess) {
                             Log.i(
                                 TAG,

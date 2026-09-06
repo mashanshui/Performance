@@ -105,7 +105,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     implementation("com.bytedance.android:shadowhook:2.0.0")
-    api("com.blankj:utilcodex:1.31.1")
+//    api("com.blankj:utilcodex:1.31.1")
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp)

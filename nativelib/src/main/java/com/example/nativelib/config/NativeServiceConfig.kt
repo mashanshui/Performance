@@ -1,5 +1,6 @@
 package com.example.nativelib.config
 
+import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.network.NetworkConfig
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -27,6 +28,14 @@ internal data class NativeServiceConfig(
     val jankEnabled: Boolean,
     val jankUploadIntervalMillis: Long,
     val jankMaxArtifactBytes: Long,
+    val fpsEnabled: Boolean = true,
+    val fpsLogLevel: FpsLogLevel = FpsLogLevel.OFF,
+    val fpsSnapshotIntervalMillis: Long = 5_000L,
+    val fpsUploadIntervalMillis: Long = 30_000L,
+    val fpsBatchSize: Int = 20,
+    val fpsMaxBatchBytes: Int = 512 * 1024,
+    val fpsQueueDiskQuotaBytes: Long = 20L * 1024L * 1024L,
+    val fpsEventTtlMillis: Long = 7L * 24L * 60L * 60L * 1000L,
 ) {
     init {
         require(
@@ -56,6 +65,24 @@ internal data class NativeServiceConfig(
         require(jankMaxArtifactBytes in 1..MAX_JANK_ARTIFACT_BYTES) {
             "native jankMaxArtifactBytes must be between 1 byte and 64 MiB"
         }
+        require(fpsSnapshotIntervalMillis > 0) {
+            "native fpsSnapshotIntervalMillis must be positive"
+        }
+        require(fpsUploadIntervalMillis > 0) {
+            "native fpsUploadIntervalMillis must be positive"
+        }
+        require(fpsBatchSize in 1..MAX_FPS_BATCH_SIZE) {
+            "native fpsBatchSize must be between 1 and $MAX_FPS_BATCH_SIZE"
+        }
+        require(fpsMaxBatchBytes in MIN_FPS_BATCH_BYTES..MAX_BATCH_BYTES) {
+            "native fpsMaxBatchBytes must be between 16 KiB and 1 MiB"
+        }
+        require(fpsQueueDiskQuotaBytes >= fpsMaxBatchBytes) {
+            "native fpsQueueDiskQuotaBytes must not be smaller than fpsMaxBatchBytes"
+        }
+        require(fpsEventTtlMillis > 0) {
+            "native fpsEventTtlMillis must be positive"
+        }
     }
 
     override fun toString(): String {
@@ -77,7 +104,15 @@ internal data class NativeServiceConfig(
             "crashUploadIntervalMillis=$crashUploadIntervalMillis, " +
             "jankEnabled=$jankEnabled, " +
             "jankUploadIntervalMillis=$jankUploadIntervalMillis, " +
-            "jankMaxArtifactBytes=$jankMaxArtifactBytes)"
+            "jankMaxArtifactBytes=$jankMaxArtifactBytes, " +
+            "fpsEnabled=$fpsEnabled, " +
+            "fpsLogLevel=$fpsLogLevel, " +
+            "fpsSnapshotIntervalMillis=$fpsSnapshotIntervalMillis, " +
+            "fpsUploadIntervalMillis=$fpsUploadIntervalMillis, " +
+            "fpsBatchSize=$fpsBatchSize, " +
+            "fpsMaxBatchBytes=$fpsMaxBatchBytes, " +
+            "fpsQueueDiskQuotaBytes=$fpsQueueDiskQuotaBytes, " +
+            "fpsEventTtlMillis=$fpsEventTtlMillis)"
     }
 
     companion object {
@@ -85,6 +120,9 @@ internal data class NativeServiceConfig(
         const val MIN_CRASH_BATCH_BYTES = 16 * 1024
         const val MAX_CRASH_REQUEST_BYTES = 1024 * 1024
         const val MAX_JANK_ARTIFACT_BYTES = 64L * 1024L * 1024L
+        const val MAX_FPS_BATCH_SIZE = 50
+        const val MIN_FPS_BATCH_BYTES = 16 * 1024
+        const val MAX_BATCH_BYTES = 1024 * 1024
     }
 }
 
@@ -109,9 +147,18 @@ internal fun PerformanceConfig.toNativeServiceConfig(appKey: String): NativeServ
         jankEnabled = jank.enabled,
         jankUploadIntervalMillis = jank.uploadIntervalMillis,
         jankMaxArtifactBytes = jank.maxArtifactBytes,
+        fpsEnabled = jank.enabled && jank.fps.enabled,
+        fpsLogLevel = jank.fps.logLevel,
+        fpsSnapshotIntervalMillis = jank.fps.snapshotIntervalMillis,
+        fpsUploadIntervalMillis = jank.fps.uploadIntervalMillis,
+        fpsBatchSize = jank.fps.batchSize,
+        fpsMaxBatchBytes = jank.fps.maxBatchBytes,
+        fpsQueueDiskQuotaBytes = jank.fps.queueDiskQuotaBytes,
+        fpsEventTtlMillis = jank.fps.eventTtlMillis,
     )
 }
 
+/** 将内部公共配置映射到 OkHttp/Retrofit 使用的网络配置。 */
 internal fun NativeServiceConfig.toNetworkConfig(): NetworkConfig {
     return NetworkConfig(
         baseUrl = baseUrl,

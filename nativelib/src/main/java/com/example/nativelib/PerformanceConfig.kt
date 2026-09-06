@@ -123,6 +123,7 @@ data class JankConfig(
     val mappingId: String = "",
     val buildId: String? = null,
     val uploadIntervalMillis: Long = DEFAULT_UPLOAD_INTERVAL_MILLIS,
+    val fps: FpsConfig = FpsConfig(),
 ) {
     init {
         requireConfig(bufferSizeBytes in MIN_BUFFER_SIZE_BYTES..MAX_BUFFER_SIZE_BYTES) {
@@ -192,6 +193,58 @@ data class JankConfig(
         const val MAX_BUILD_ID_LENGTH = 256
         const val DEFAULT_UPLOAD_INTERVAL_MILLIS = 30_000L
     }
+}
+
+/** FPS 采集、日志和指标批次上传配置。 */
+data class FpsConfig(
+    val enabled: Boolean = true,
+    val logLevel: FpsLogLevel = FpsLogLevel.OFF,
+    val snapshotIntervalMillis: Long = DEFAULT_SNAPSHOT_INTERVAL_MILLIS,
+    val uploadIntervalMillis: Long = DEFAULT_UPLOAD_INTERVAL_MILLIS,
+    val batchSize: Int = DEFAULT_BATCH_SIZE,
+    val maxBatchBytes: Int = DEFAULT_MAX_BATCH_BYTES,
+    val queueDiskQuotaBytes: Long = DEFAULT_QUEUE_DISK_QUOTA_BYTES,
+    val eventTtlMillis: Long = DEFAULT_EVENT_TTL_MILLIS,
+) {
+    init {
+        requireConfig(snapshotIntervalMillis > 0) {
+            "fps snapshotIntervalMillis must be positive"
+        }
+        requireConfig(uploadIntervalMillis > 0) {
+            "fps uploadIntervalMillis must be positive"
+        }
+        requireConfig(batchSize in 1..MAX_BATCH_SIZE) {
+            "fps batchSize must be between 1 and $MAX_BATCH_SIZE"
+        }
+        requireConfig(maxBatchBytes in MIN_BATCH_BYTES..MAX_BATCH_BYTES) {
+            "fps maxBatchBytes must be between 16 KiB and 1 MiB"
+        }
+        requireConfig(queueDiskQuotaBytes >= maxBatchBytes) {
+            "fps queueDiskQuotaBytes must not be smaller than maxBatchBytes"
+        }
+        requireConfig(eventTtlMillis > 0) {
+            "fps eventTtlMillis must be positive"
+        }
+    }
+
+    companion object {
+        const val DEFAULT_SNAPSHOT_INTERVAL_MILLIS = 5_000L
+        const val DEFAULT_UPLOAD_INTERVAL_MILLIS = 30_000L
+        const val DEFAULT_BATCH_SIZE = 20
+        const val DEFAULT_MAX_BATCH_BYTES = 512 * 1024
+        const val DEFAULT_QUEUE_DISK_QUOTA_BYTES = 20L * 1024L * 1024L
+        const val DEFAULT_EVENT_TTL_MILLIS = 7L * 24L * 60L * 60L * 1000L
+        const val MAX_BATCH_SIZE = 50
+        const val MIN_BATCH_BYTES = 16 * 1024
+        const val MAX_BATCH_BYTES = 1024 * 1024
+    }
+}
+
+/** FPS 日志等级；默认关闭，避免生产环境逐帧日志带来额外开销。 */
+enum class FpsLogLevel {
+    OFF,
+    SUMMARY,
+    VERBOSE,
 }
 
 private fun requireOptionalText(value: String?, name: String, maxLength: Int = 512) {

@@ -2,6 +2,9 @@
 
 `nativelib` 已配置 Android Library 的 Maven 发布能力，默认发布 `release` 变体。
 
+完整的默认值、字段说明、校验限制和运行时控制方式参见
+[自定义配置指南](CONFIGURATION.md)。
+
 ## 统一初始化
 
 应用只需要在 `Application.onCreate()` 中传入 `Application` 和 App Key：
@@ -36,10 +39,24 @@ val performance = PerformanceSdk.initialize(
             minSampleIntervalMillis = 5L,
             enableStackCaptureStats = true,
             mappingId = "mapping-2026-09",
+            fps = FpsConfig(
+                logLevel = FpsLogLevel.SUMMARY,
+            ),
         ),
     ),
 )
 ```
+
+FPS 由 SDK 自动跟随 Activity 的 `onResume`/`onPause` 采集。它只统计真实 UI 刷新帧，
+按场景和刷新率在一次运行内合并，下一次启动时封存并上传 `frame_scene_summary` v2。
+需要业务场景名时调用 `performance.setFpsScene(activity, "checkout")`，传 `null` 恢复
+Activity 完整类名。API 24 以下、非主进程或非硬件加速 Window 会跳过 FPS 采集。
+
+FPS 日志默认关闭。`SUMMARY` 输出页面生命周期、每秒统计摘要、场景合并和上传结果；
+`VERBOSE` 额外输出逐帧耗时及过滤原因。逐帧日志会增加开销，性能验收应使用 `OFF`。
+日志等级和批次、快照、队列参数位于 `JankConfig.fps`，完整字段见
+[配置指南](CONFIGURATION.md) 的 FPS 小节。
+统计公式、刷新率切桶、持久化边界和典型日志见 [FPS 算法说明](FPS_ALGORITHM.md)。
 
 包名、版本名、versionCode、buildId 和匿名设备 ID 默认从当前 Application 自动解析或持久化，
 不需要应用层重复维护。设备不满足 Rhea 的线上采集条件时，`isJankAvailable` 为 `false`，

@@ -47,6 +47,8 @@ class MainActivity : AppCompatActivity() {
             /** 记录一次主线程消息开始时间，供既有卡顿演示逻辑使用。 */
             override fun onMessageBegin(log: String) {
                 messageStartNs = SystemClock.elapsedRealtimeNanos()
+                RheaTrace3.beginStackTiming()
+                Log.e(TAG, "onMessageBegin: ")
             }
 
             /** 在主线程消息超过阈值时导出既有卡顿事件。 */
@@ -56,7 +58,13 @@ class MainActivity : AppCompatActivity() {
                 }
                 val endNs = SystemClock.elapsedRealtimeNanos()
                 if (endNs > messageStartNs + 100000000) {
-                    Log.e(TAG, "onMessageEnd: ")
+                    Log.e(TAG, "onMessageEnd: $endNs")
+                    // 执行消息任务
+                    val report = RheaTrace3.endStackTiming()
+                    for (line in report.split("\n".toRegex()).dropLastWhile { it.isEmpty() }
+                        .toTypedArray()) {
+                        Log.i("StackDiagnostics", line)
+                    }
                     RheaTrace3.captureStackTrace(false)
                     val event = RheaTrace3.JankEvent.builder()
                         .setEventId("demo-jank-$endNs")

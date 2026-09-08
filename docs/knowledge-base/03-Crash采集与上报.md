@@ -1,0 +1,67 @@
+# Crash 采集与上报
+
+[返回导航](README.md)
+
+## 功能与入口
+
+Crash 链路记录应用启动和 JVM 未处理异常，先持久化事件，再尝试上传，以便进程重启后恢复。由 `PerformanceSdk.initialize → componentFactory.startCrash → CrashReporter.start` 启动。
+
+当前载荷为 `crash.kind=jvm`、`fatal=true`。它不覆盖 native signal、系统 ANR 或业务主动上报的非致命异常。
+
+## 调用链
+
+~~~mermaid
+flowchart TD
+    Start["Reporter 启动"] --> AppStart["构造 app_start"]
+    Handler["默认 UncaughtExceptionHandler"] --> Factory["CrashEventFactory.crash"]
+    AppStart --> Queue["FileCrashQueue.enqueue"]
+    Factory --> Queue
+    Queue --> Upload["CrashUploader.flush"]
+    Upload --> Net["CrashNetworkClient.sendBatch"]
+    Net --> Ack["确认 / 重试 / dead-letter"]
+    Handler --> Previous["处理后委托原异常 handler"]
+~~~
+
+`CrashReporter.start` 先入队 `app_start`，安装异常 handler，再安排启动上传、周期上传和网络恢复回调。网络恢复监听只在 API 24+ 注册；低版本仍可依赖启动和周期任务。
+
+异常处理通过原子标志避免重复进入采集。`captureAndFlush` 同步生成并落盘，再尝试最多一批、`withTimeout(3500ms)` 约束的上传，随后委托原 handler；没有原 handler 或委托失败则退出进程。若已有 flush 正在执行，本次同步 flush 跳过，落盘事件等待后续处理。
+
+## 事件与堆栈
+
+`CrashEventFactory` 为事件生成 eventId，复用 Reporter 的 sessionId 和匿名设备 ID。`ThrowableMapper` 沿 cause 链读取，使用对象身份防止循环，最多 16 层异常、总计 200 帧；无堆栈时构造合成帧。
+
+消息经过 `CrashSanitizer` 处理和截断，applicationFrame 根据应用包名前缀判断。这里的脱敏是规则处理，不能解释为任意业务字符串都已不可识别。
+
+## 持久化与上传
+
+队列位于应用 `noBackupFilesDir/performance-crash-reporter`：
+
+~~~text
+anonymous-device-id       共享匿名设备 ID
+events/                  每个 eventId 一份 JSON，含重试状态
+dead-letter/             永久拒绝、损坏或过期记录
+~~~
+
+`AtomicFileWriter` 写临时文件、刷新并同步，再重命名。`FileCrashQueue` 用同步方法保护同实例访问；这不是已验证的跨进程锁。
+
+`CrashUploader.selectBatch` 同时限制事件数和完整 UTF-8 JSON 字节数。单事件超限直接隔离。每次 flush 最多处理 5 批，开始时把超过 7 天的事件转入 dead-letter；dead-letter 默认最多保留 100 个文件，当前正常队列没有字节配额。
+
+响应按 errors 的 index/eventId 定位：未列入错误的事件确认删除，可重试事件保留 ID 并更新下次时间，永久错误转入 dead-letter。无效错误定位触发整批重试。
+
+HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退避从 30 秒指数增长至最多 1 小时，也支持响应中的重试秒数。具体差异见 [队列对比](08-网络通信与持久化队列.md)。
+
+## 当前边界与调试
+
+**当前客户端协议尚未与所核对服务端契约一致**：客户端默认 schema v1，事件含 `appId` 而没有 `packageName`；服务端要求 v2 和 packageName。仅将配置 schema 改成 2 不能补齐事件字段，见 [协议差异](09-服务端对接与数据协议.md)。
+
+调试时先通过启动事件验证本地落盘和请求，再在独立 Debug 验证代码中抛出未捕获异常。当前主页面没有 Crash 按钮，不应把被 `runCatching` 吞掉的异常作为未处理崩溃测试。观察 `CrashReporter` 日志、events/dead-letter 和 HTTP 响应；队列变少也可能是永久隔离，不能直接判定上传成功。
+
+## 源码与验证依据
+
+- [CrashReporter](../../nativelib/src/main/java/com/example/nativelib/crash/CrashReporter.kt)：start、captureAndFlush、flushSynchronously、close。
+- [CrashEventFactory / ThrowableMapper](../../nativelib/src/main/java/com/example/nativelib/crash/CrashEventFactory.kt)、[FileCrashQueue](../../nativelib/src/main/java/com/example/nativelib/crash/FileCrashQueue.kt)、[CrashUploader](../../nativelib/src/main/java/com/example/nativelib/crash/CrashUploader.kt)。
+- [CrashEventFactoryTest](../../nativelib/src/test/java/com/example/nativelib/crash/CrashEventFactoryTest.kt)：脱敏、链长/帧数限制与启动元数据。
+- [FileCrashQueueTest](../../nativelib/src/test/java/com/example/nativelib/crash/FileCrashQueueTest.kt)：重试状态和 dead-letter。
+- [CrashUploaderTest](../../nativelib/src/test/java/com/example/nativelib/crash/CrashUploaderTest.kt)：部分成功、原 eventId 重试和异常定位。
+
+本轮仅阅读这些用例，没有执行真实崩溃、进程重启和服务端接收验证。

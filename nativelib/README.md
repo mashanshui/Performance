@@ -1,5 +1,10 @@
 # nativelib 本地发布
 
+项目机制和源码调用链见[知识库导航](../docs/knowledge-base/README.md)，开发规范见
+[AGENTS.md](../AGENTS.md)。当前客户端与服务端存在待对齐项，尤其是 Crash schema/包名字段，
+接入前请查阅[协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)；本文的发布和初始化
+示例不代表已完成当前服务端联调。
+
 `nativelib` 已配置 Android Library 的 Maven 发布能力，默认发布 `release` 变体。
 
 完整的默认值、字段说明、校验限制和运行时控制方式参见
@@ -71,9 +76,11 @@ val requestResult = performance.exportAndEnqueue(event) { result ->
 }
 ```
 
-App Key 不写入库文件或日志，仅在运行期请求头中使用。示例应用通过本地 Gradle 属性
-`performance.appKey` 注入；直接把 App Key 写入 APK 仍不能阻止逆向提取，生产环境应按服务端
-密钥策略管理。
+SDK 队列和网络日志不保存 App Key 明文，认证时通过运行期请求头使用。示例构建脚本提供
+`performance.appKey` 到 `BuildConfig.PERFORMANCE_APP_KEY` 的注入入口，但当前 App.kt 初始化
+仍使用字符串常量，没有读取该字段；修改 Gradle 属性尚不能改变该调用的 Key。接入方式和
+当前差异见[配置指南](CONFIGURATION.md)与[示例调试](../docs/knowledge-base/10-示例应用与调试路径.md)。
+直接把 App Key 写入 APK 仍不能阻止逆向提取，生产环境应按服务端密钥策略管理。
 
 ## 发布到 Maven Local
 

@@ -28,6 +28,11 @@ class App : Application() {
                 config = PerformanceConfig(
                     jank = JankConfig(
                         fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
+                        enableStackCaptureStats = true,
+                        enableObjectAllocation = true,
+                        enableWakeup = true,
+                        enableRusage = true,
+                        enableJniHook = true
                     ),
                 ),
             )

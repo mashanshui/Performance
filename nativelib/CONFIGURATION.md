@@ -4,6 +4,11 @@
 `com.example.nativelib` 包中，App Key 始终作为初始化参数传入，不放在
 `PerformanceConfig` 内。
 
+项目架构和调用链见[知识库导航](../docs/knowledge-base/README.md)。本文记录客户端当前配置；
+Crash 的默认 schema v1 与 appId 字段尚未对齐所核对服务端的 v2/packageName 契约，详见
+[协议差异](../docs/knowledge-base/09-服务端对接与数据协议.md)。仅修改 schemaVersion 不能解决
+事件字段差异。
+
 ## 1. 最小初始化
 
 在应用的 `Application.onCreate()` 中传入当前 `Application` 和 App Key：
@@ -25,12 +30,15 @@ class App : Application() {
 
 ### 1.1 从本地 Gradle 属性注入 App Key
 
-示例应用使用 `performance.appKey` 生成 `BuildConfig.PERFORMANCE_APP_KEY`。本地构建时
+示例应用的构建脚本使用 `performance.appKey` 生成 `BuildConfig.PERFORMANCE_APP_KEY`。本地构建时
 可以通过 Gradle 属性传入：
 
 ```powershell
 .\gradlew.bat :app:assembleDebug -Pperformance.appKey="<your-app-key>"
 ```
+
+当前 App.kt 仍直接传入字符串常量，尚未读取这个 BuildConfig 字段；上面的最小初始化示例
+展示接入写法。仅传 Gradle 属性不能改变当前 App.kt 的实际初始化参数。
 
 不要把真实 App Key 提交到源码、版本控制或文档中。SDK 只在运行期将 App Key 放到
 请求认证头中，不会将它写入持久队列，也不会在网络日志中输出明文。
@@ -134,7 +142,7 @@ val config = PerformanceConfig(
 | `enableWakeup` | `false` | 是否启用唤醒采样 |
 | `enableRusage` | `false` | 是否启用资源使用统计 |
 | `enableStackCaptureStats` | `false` | 是否启用堆栈采集统计 |
-| `mappingId` | 空字符串 | 符号映射 ID，需要符号映射时显式填写，最长 128 个字符 |
+| `mappingId` | 空字符串 | 传给 Rhea 的符号映射 ID，最长 128 个字符；当前服务端按 buildId 查找 mapping |
 | `buildId` | 使用公共派生 buildId | Jank 单独覆盖的构建标识，最长 256 个字符 |
 | `uploadIntervalMillis` | `30000` | ZIP 队列周期上传间隔，必须为正数 |
 
@@ -150,7 +158,9 @@ val config = PerformanceConfig(
 )
 ```
 
-`mappingId` 默认为空，不会自动猜测符号映射。只有服务端存在对应符号映射时才应填写。
+`mappingId` 默认为空，不会自动猜测符号映射。该字段会传给 Rhea，但所核对的 apm-server
+使用认证应用和 `buildId` 查找 mapping，客户端也不发送 `X-Mapping-Id`；不能把填写 mappingId
+等同于服务端已完成映射选择。当前对接方式见[协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)。
 
 ### 3.4 `FpsConfig`
 
@@ -200,18 +210,21 @@ PerformanceSdk.current()?.setFpsScene(this, null)
 
 SDK 初始化时会自动解析并复用以下信息：
 
-- Crash 和 Jank 共用包名、版本信息、派生 `buildId`、环境和渠道。
-- 匿名设备 ID 持久化保存，Crash 和 Jank 使用同一个 ID。
-- Crash 与 Jank 共用网络客户端、超时参数和 App Key 认证信息。
+- Crash、Jank 和 FPS 默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
+- Crash 可覆盖其事件元数据，Jank 可单独覆盖 `buildId`；FPS 使用 Application 元数据和公共派生 `buildId`。
+- 匿名设备 ID 持久化保存，三个 Reporter 复用同一个 ID。
+- 三条链路共用网络客户端、超时参数和 App Key 认证信息。
 - Jank 的 `mappingId` 不参与自动推导，默认保持为空。
 
-除非有明确的服务端兼容要求，否则不建议分别覆盖两类事件的公共元数据。
+sessionId 尚未统一：Crash 和 FPS 各自生成，Jank 由事件构造方传入。公共元数据复用不代表
+跨链路会话 ID 一致。事件字段差异以[服务端协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)为准。
 
 ## 5. 初始化结果和异常
 
 ### 5.1 返回同一实例
 
-同一进程中，使用相同 App Key 和相同有效配置重复初始化时，SDK 返回原实例：
+同一进程中，使用相同 trim 后 App Key 和相等的 PerformanceConfig 重复初始化时，SDK 返回原实例。
+配置比较使用数据类相等，不是再次规范化后比较：
 
 ```kotlin
 val first = PerformanceSdk.initialize(this, appKey)
@@ -273,8 +286,13 @@ val result = sdk.exportAndEnqueue(event) { exportResult ->
 sdk.close()
 ```
 
-`flush()` 是 `flushAsync()` 的便捷入口别名，实际上传仍由后台调度器执行。Crash 和
-Jank 队列会在启动、网络恢复和周期调度时继续重试；不需要应用额外接入 WorkManager。
+`flush()` 是 `flushAsync()` 的便捷入口别名，实际上传仍由后台调度器执行，也不跳过队列重试时间。
+Crash、Jank 和 FPS 封存队列会在启动、支持的网络恢复回调和周期调度时继续处理；当前没有接入 WorkManager。
+
+FPS 的 flush 只保存 Store 已合并数据的快照并上传封存队列，不主动结算 Helper 当前桶，
+也不封存当前会话。页面暂停时只结算到 Store；SDK close 或下次初始化恢复时才封存。
+close 在专用后台线程执行 FPS 持久化，但调用线程会等待完成，且不承诺完成网络上传。
+详细时序见[FPS 专题](../docs/knowledge-base/05-FPS采集与场景汇总.md)。
 
 ## 7. 配置建议
 

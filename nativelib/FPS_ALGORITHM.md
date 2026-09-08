@@ -1,5 +1,9 @@
 # FPS 统计口径与日志说明
 
+本页统一维护公式与日志口径。收集时机、Activity 生命周期、逐帧调用链、跨线程时序和流程图见
+[FPS 收集说明](../docs/knowledge-base/05-FPS采集与场景汇总.md)，其他专题见
+[知识库导航](../docs/knowledge-base/README.md)。
+
 ## 1. 采集边界
 
 SDK 在 `Activity.onResume` 时为硬件加速的 `Window` 注册 `FrameMetrics` 监听，在
@@ -69,10 +73,15 @@ I/FpsHelperV2: interval scene=checkout 无有效刷新，FPS 不计算
 
 ## 4. 事件可靠性
 
-当前会话每 5 秒原子保存 `current.json`，页面退出时合并并封存为不可变事件；下一次
-初始化会恢复上次未封存快照。事件第一次进入桶时生成 `eventId` 并写入快照，重试会
-一直复用同一 ID。封存事件使用 `/ingest/v1/batches`、`schemaVersion=2`、
+Helper 在场景或刷新率切换、停止和关闭时，把统计区间交给 Store 合并。Store 默认每 5 秒
+原子保存已合并数据到 `current.json`。页面退出只结算并合并，不立即封存；SDK close 时封存
+当前会话，或在下一次初始化时恢复并封存上次未封存快照。
+
+事件第一次进入 Store 聚合桶时生成 `eventId`，之后随快照保存，重试一直复用同一 ID。
+每秒日志摘要不触发 Store 合并；Helper 当前未结算桶不在 `current.json` 中，异常终止可能丢失
+该桶以及尚未写盘的 Store 增量，不能把最多丢失范围概括为 5 秒。
+
+封存事件使用 `/ingest/v1/batches`、`schemaVersion=2`、
 `eventType=frame_scene_summary` 上传，只有 HTTP 200 且响应计数与事件错误定位一致时，
 `accepted` 或 `duplicate` 事件才会删除。网络失败、异常响应和可重试错误保留原事件，
 永久事件错误进入独立 dead-letter 目录。
-

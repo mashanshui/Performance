@@ -26,7 +26,7 @@ class App : Application() {
 }
 ```
 
-不传第三个参数时，Crash 和线上卡顿（Jank）都会启用，并使用本文的默认值。
+不传第三个参数时，Crash、线上卡顿（Jank）和主进程内存指标都会启用，并使用本文的默认值。
 
 ### 1.1 从本地 Gradle 属性注入 App Key
 
@@ -72,6 +72,11 @@ val performance = PerformanceSdk.initialize(
             fps = FpsConfig(
                 logLevel = FpsLogLevel.SUMMARY,
             ),
+        ),
+        memory = MemoryConfig(
+            foregroundSamplingIntervalMillis = 60_000L,
+            backgroundSamplingIntervalMillis = 5L * 60L * 1_000L,
+            uploadIntervalMillis = 30_000L,
         ),
     ),
 )
@@ -198,6 +203,30 @@ FPS 计算。`VERBOSE` 会打印原始帧耗时、帧预算、有效耗时及首
 完整的 `fps-v1` 公式、静止区间处理、刷新率切桶规则和典型日志见
 [FPS 算法说明](FPS_ALGORITHM.md)。
 
+### 3.5 `MemoryConfig`
+
+内存指标独立于 Crash、Jank 和 FPS 开关，只在主进程运行。初始化时立即采集一次；Activity
+进入前台或确认进入后台时也立即采集一次，随后按对应周期执行。采集和磁盘操作在 SDK 后台线程，
+不会放到主线程。事件使用服务端 `memory_sample` v2，PSS 使用 `Debug.getPss()`，VSS 读取
+`/proc/self/status` 的 `VmSize`，Java 堆使用 `Runtime.totalMemory() - Runtime.freeMemory()`。
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `enabled` | `true` | 是否启用主进程内存采集和上传 |
+| `foregroundSamplingIntervalMillis` | `60000` | 前台周期，必须为正数 |
+| `backgroundSamplingIntervalMillis` | `300000` | 后台周期，必须为正数 |
+| `uploadIntervalMillis` | `30000` | 上传检查周期，必须为正数 |
+| `batchSize` | `20` | 单批最多事件数，范围 `1..50` |
+| `maxBatchBytes` | `512 KiB` | 单批 JSON 大小，范围 `16 KiB..1 MiB` |
+| `queueDiskQuotaBytes` | `20 MiB` | 正常事件和失败隔离文件共用额度 |
+| `eventTtlMillis` | `7 天` | 事件和失败隔离文件的保留时间 |
+| `maxAttempts` | `10` | 网络或服务端可重试失败的最大次数 |
+
+三个指标可以独立缺失，不能用 0 代替读取失败；真实的零值会保留。单事件 JSON 超过服务端 256 KiB 上限会进入 `dead-letter`。事件生成稳定
+`eventId` 后先原子写入 `noBackupFilesDir/performance-memory-reporter/events`，服务端确认
+`accepted` 或 `duplicate` 后才删除。网络中断、408、429 和 5xx 会按 `Retry-After` 或退避重试，
+永久错误和达到最大次数的事件进入 `dead-letter`。
+
 场景可以在页面运行期间覆盖：
 
 ```kotlin
@@ -210,10 +239,10 @@ PerformanceSdk.current()?.setFpsScene(this, null)
 
 SDK 初始化时会自动解析并复用以下信息：
 
-- Crash、Jank 和 FPS 默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
+- Crash、Jank、FPS 和内存默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
 - Crash 可覆盖其事件元数据，Jank 可单独覆盖 `buildId`；FPS 使用 Application 元数据和公共派生 `buildId`。
-- 匿名设备 ID 持久化保存，三个 Reporter 复用同一个 ID。
-- 三条链路共用网络客户端、超时参数和 App Key 认证信息。
+- 匿名设备 ID 持久化保存，四个 Reporter 复用同一个 ID。
+- 四条链路共用网络客户端、超时参数和 App Key 认证信息；内存请求固定发送 `X-Schema-Version: 2`。
 - Jank 的 `mappingId` 不参与自动推导，默认保持为空。
 
 sessionId 尚未统一：Crash 和 FPS 各自生成，Jank 由事件构造方传入。公共元数据复用不代表
@@ -246,6 +275,7 @@ check(first === second)
 - `CRASH`：Crash Reporter 创建失败。
 - `JANK`：Rhea 或 Jank Reporter 创建失败。
 - `FPS`：FPS 队列或 Activity 生命周期 reporter 创建失败。
+- `MEMORY`：内存队列或采样 reporter 创建失败。
 
 初始化失败会回滚已经启动的 Crash handler、Jank Reporter、Rhea 采集和调度器，不留下半初始化
 状态。空白 App Key 会立即抛出 `IllegalArgumentException`。
@@ -273,6 +303,12 @@ if (sdk.isJankAvailable) {
 // FPS 仅在 API 24+、主进程和硬件加速窗口可用时采集。
 if (sdk.isFpsAvailable) {
     Log.d("Performance", "pendingFps=${sdk.pendingFpsEventCount()}")
+    sdk.flushAsync()
+}
+
+// 内存指标只在主进程可用时采样；可查看队列并手动触发上传检查。
+if (sdk.isMemoryAvailable) {
+    Log.d("Performance", "pendingMemory=${sdk.pendingMemoryEventCount()}")
     sdk.flushAsync()
 }
 

@@ -10,13 +10,14 @@ import com.example.nativelib.crash.CrashReporterConfig
 import com.example.nativelib.jank.JankArtifactExportCallback
 import com.example.nativelib.jank.JankArtifactReporter
 import com.example.nativelib.fps.FpsReporter
+import com.example.nativelib.memory.MemoryReporter
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.Closeable
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
-/** 初始化阶段，供调用方区分配置、Crash 和 Jank 失败。 */
+/** 初始化阶段，供调用方区分配置和各 Reporter 失败。 */
 enum class PerformanceInitializationStage {
     VALIDATION,
     METADATA,
@@ -24,6 +25,7 @@ enum class PerformanceInitializationStage {
     CRASH,
     JANK,
     FPS,
+    MEMORY,
 }
 
 /** SDK 初始化失败；异常消息只包含阶段和非敏感状态，不包含 App Key。 */
@@ -34,7 +36,7 @@ class PerformanceInitializationException(
 ) : IllegalArgumentException("[$stage] $message", cause)
 
 /**
- * Crash 与线上卡顿的统一生命周期门面。
+ * Crash、线上卡顿、FPS 和内存指标的统一生命周期门面。
  *
  * 应用通常只需在 Application.onCreate 中调用：
  *
@@ -46,6 +48,7 @@ class PerformanceSdk private constructor(
     private val networkFactory: NetworkClientFactory,
     private val jankReporterReady: Boolean,
     private val fpsReporter: FpsReporter?,
+    private val memoryReporter: MemoryReporter?,
     private val traceStartedBySdk: Boolean,
     private val appKeyFingerprint: String,
     private val config: PerformanceConfig,
@@ -65,7 +68,11 @@ class PerformanceSdk private constructor(
     val isFpsAvailable: Boolean
         get() = fpsReporter?.isAvailable == true && !closed.get()
 
-    /** 异步触发 Crash 与 Jank 队列刷新。 */
+    /** 主进程内存采集可用时为 true；关闭 SDK 后返回 false。 */
+    val isMemoryAvailable: Boolean
+        get() = memoryReporter?.isAvailable == true && !closed.get()
+
+    /** 异步触发所有已启用事件队列刷新。 */
     fun flushAsync() {
         if (closed.get()) {
             return
@@ -75,6 +82,7 @@ class PerformanceSdk private constructor(
             JankArtifactReporter.flushAsync()
         }
         fpsReporter?.flushAsync()
+        memoryReporter?.flushAsync()
     }
 
     /** 刷新队列的便捷别名；实际发送仍在后台线程执行。 */
@@ -92,6 +100,9 @@ class PerformanceSdk private constructor(
 
     /** 返回 FPS 封存队列中的待上传事件数量。 */
     fun pendingFpsEventCount(): Int = fpsReporter?.pendingEventCount() ?: 0
+
+    /** 返回内存指标封存队列中的待上传事件数量。 */
+    fun pendingMemoryEventCount(): Int = memoryReporter?.pendingEventCount() ?: 0
 
     /** 为指定 Activity 设置 FPS 场景名；传 null 恢复 Activity 完整类名。 */
     fun setFpsScene(activity: Activity, scene: String?) {
@@ -125,6 +136,9 @@ class PerformanceSdk private constructor(
             runCatching {
                 fpsReporter?.close()
             }.onFailure { logCloseFailure("fps") }
+            runCatching {
+                memoryReporter?.close()
+            }.onFailure { logCloseFailure("memory") }
             runCatching {
                 crashReporter?.close()
             }.onFailure { logCloseFailure("crash") }
@@ -201,6 +215,7 @@ class PerformanceSdk private constructor(
 
                 var crashReporter: CrashReporter? = null
                 var fpsReporter: FpsReporter? = null
+                var memoryReporter: MemoryReporter? = null
                 var jankReporterReady = false
                 var traceStartedBySdk = false
                 var jankResult = RheaTrace3.InitResult.DISABLED
@@ -208,9 +223,13 @@ class PerformanceSdk private constructor(
                 val fpsProcessAvailable = runCatching {
                     FpsReporter.isProcessAvailable(application)
                 }.getOrDefault(false)
+                val memoryProcessAvailable = runCatching {
+                    MemoryReporter.isProcessAvailable(application)
+                }.getOrDefault(false)
                 try {
                     val anonymousDeviceId = if (
-                        serviceConfig.crashEnabled || serviceConfig.jankEnabled
+                        serviceConfig.crashEnabled || serviceConfig.jankEnabled ||
+                            serviceConfig.memoryEnabled
                     ) {
                         componentFactory.loadAnonymousDeviceId(application)
                     } else {
@@ -290,12 +309,25 @@ class PerformanceSdk private constructor(
                         )
                     }
 
+                    if (serviceConfig.memoryEnabled && memoryProcessAvailable) {
+                        memoryReporter = componentFactory.initializeMemory(
+                            application = application,
+                            serviceConfig = serviceConfig,
+                            memoryConfig = config.memory,
+                            metadata = metadata,
+                            buildId = buildId,
+                            anonymousDeviceId = anonymousDeviceId,
+                            networkFactory = networkFactory,
+                        )
+                    }
+
                     val sdk = PerformanceSdk(
                         componentFactory = componentFactory,
                         crashReporter = crashReporter,
                         networkFactory = networkFactory,
                         jankReporterReady = jankReporterReady,
                         fpsReporter = fpsReporter,
+                        memoryReporter = memoryReporter,
                         traceStartedBySdk = traceStartedBySdk,
                         appKeyFingerprint = fingerprint(normalizedAppKey),
                         config = config,
@@ -309,6 +341,7 @@ class PerformanceSdk private constructor(
                         crashReporter,
                         jankReporterReady,
                         fpsReporter,
+                        memoryReporter,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -319,6 +352,7 @@ class PerformanceSdk private constructor(
                         crashReporter,
                         jankReporterReady,
                         fpsReporter,
+                        memoryReporter,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -329,6 +363,9 @@ class PerformanceSdk private constructor(
 
                             fpsReporter == null && serviceConfig.fpsEnabled && fpsProcessAvailable ->
                                 PerformanceInitializationStage.FPS
+
+                            memoryReporter == null && serviceConfig.memoryEnabled && memoryProcessAvailable ->
+                                PerformanceInitializationStage.MEMORY
 
                             serviceConfig.jankEnabled -> PerformanceInitializationStage.JANK
                             else -> PerformanceInitializationStage.NETWORK
@@ -346,6 +383,7 @@ class PerformanceSdk private constructor(
             crashReporter: CrashReporter?,
             jankReporterReady: Boolean,
             fpsReporter: FpsReporter?,
+            memoryReporter: MemoryReporter?,
             traceStartedBySdk: Boolean,
             networkFactory: NetworkClientFactory,
         ) {
@@ -353,6 +391,7 @@ class PerformanceSdk private constructor(
                 runCatching { componentFactory.closeJank() }
             }
             fpsReporter?.let { runCatching { it.close() } }
+            memoryReporter?.let { runCatching { it.close() } }
             crashReporter?.let { runCatching { it.close() } }
             if (traceStartedBySdk) {
                 runCatching { componentFactory.stopRhea() }

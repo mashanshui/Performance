@@ -4,6 +4,7 @@ import com.example.nativelib.CrashConfig
 import com.example.nativelib.FpsConfig
 import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.JankConfig
+import com.example.nativelib.MemoryConfig
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.ServiceConfig
 import org.junit.Assert.assertEquals
@@ -40,6 +41,12 @@ class NativeServiceConfigTest {
         assertEquals(FpsConfig.DEFAULT_BATCH_SIZE, config.fpsBatchSize)
         assertTrue(config.crashEnabled)
         assertTrue(config.jankEnabled)
+        assertTrue(config.memoryEnabled)
+        assertEquals(MemoryConfig.DEFAULT_BATCH_SIZE, config.memoryBatchSize)
+        assertEquals(
+            MemoryConfig.DEFAULT_FOREGROUND_SAMPLING_INTERVAL_MILLIS,
+            config.memoryForegroundSamplingIntervalMillis,
+        )
     }
 
     /** 验证嵌套服务配置和开关可以映射且不会泄露 App Key。 */
@@ -91,6 +98,9 @@ class NativeServiceConfigTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             PerformanceConfig(jank = JankConfig(maxArtifactBytes = JankConfig.MAX_ARTIFACT_BYTES + 1))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            PerformanceConfig(memory = MemoryConfig(batchSize = 0))
         }
         assertThrows(IllegalArgumentException::class.java) {
             PerformanceConfig().toNativeServiceConfig(" ")

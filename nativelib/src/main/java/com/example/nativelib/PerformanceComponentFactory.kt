@@ -9,6 +9,7 @@ import com.example.nativelib.crash.CrashReporter
 import com.example.nativelib.crash.CrashReporterConfig
 import com.example.nativelib.jank.JankArtifactInitResult
 import com.example.nativelib.jank.JankArtifactReporter
+import com.example.nativelib.memory.MemoryReporter
 import com.example.nativelib.network.NetworkClientFactory
 
 /**
@@ -47,6 +48,17 @@ internal interface PerformanceComponentFactory {
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): FpsReporter
+
+    /** 创建主进程内存采集和持久上传 Reporter。 */
+    fun initializeMemory(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        memoryConfig: MemoryConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    ): MemoryReporter
 
     fun closeJank()
 
@@ -107,6 +119,26 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             application = application,
             serviceConfig = serviceConfig,
             fpsConfig = fpsConfig,
+            metadata = metadata,
+            buildId = buildId,
+            anonymousDeviceId = anonymousDeviceId,
+            networkFactory = networkFactory,
+        )
+    }
+
+    override fun initializeMemory(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        memoryConfig: MemoryConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    ): MemoryReporter {
+        return MemoryReporter.create(
+            application = application,
+            config = serviceConfig,
+            memoryConfig = memoryConfig,
             metadata = metadata,
             buildId = buildId,
             anonymousDeviceId = anonymousDeviceId,

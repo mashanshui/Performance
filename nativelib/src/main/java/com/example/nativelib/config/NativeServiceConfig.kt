@@ -36,6 +36,15 @@ internal data class NativeServiceConfig(
     val fpsMaxBatchBytes: Int = 512 * 1024,
     val fpsQueueDiskQuotaBytes: Long = 20L * 1024L * 1024L,
     val fpsEventTtlMillis: Long = 7L * 24L * 60L * 60L * 1000L,
+    val memoryEnabled: Boolean = true,
+    val memoryForegroundSamplingIntervalMillis: Long = 60_000L,
+    val memoryBackgroundSamplingIntervalMillis: Long = 5L * 60L * 1_000L,
+    val memoryUploadIntervalMillis: Long = 30_000L,
+    val memoryBatchSize: Int = 20,
+    val memoryMaxBatchBytes: Int = 512 * 1024,
+    val memoryQueueDiskQuotaBytes: Long = 20L * 1024L * 1024L,
+    val memoryEventTtlMillis: Long = 7L * 24L * 60L * 60L * 1_000L,
+    val memoryMaxAttempts: Int = 10,
 ) {
     init {
         require(
@@ -83,6 +92,30 @@ internal data class NativeServiceConfig(
         require(fpsEventTtlMillis > 0) {
             "native fpsEventTtlMillis must be positive"
         }
+        require(memoryForegroundSamplingIntervalMillis > 0) {
+            "native memoryForegroundSamplingIntervalMillis must be positive"
+        }
+        require(memoryBackgroundSamplingIntervalMillis > 0) {
+            "native memoryBackgroundSamplingIntervalMillis must be positive"
+        }
+        require(memoryUploadIntervalMillis > 0) {
+            "native memoryUploadIntervalMillis must be positive"
+        }
+        require(memoryBatchSize in 1..MAX_MEMORY_BATCH_SIZE) {
+            "native memoryBatchSize must be between 1 and $MAX_MEMORY_BATCH_SIZE"
+        }
+        require(memoryMaxBatchBytes in MIN_MEMORY_BATCH_BYTES..MAX_BATCH_BYTES) {
+            "native memoryMaxBatchBytes must be between 16 KiB and 1 MiB"
+        }
+        require(memoryQueueDiskQuotaBytes >= memoryMaxBatchBytes) {
+            "native memoryQueueDiskQuotaBytes must not be smaller than memoryMaxBatchBytes"
+        }
+        require(memoryEventTtlMillis > 0) {
+            "native memoryEventTtlMillis must be positive"
+        }
+        require(memoryMaxAttempts in 1..MAX_MEMORY_ATTEMPTS) {
+            "native memoryMaxAttempts must be between 1 and $MAX_MEMORY_ATTEMPTS"
+        }
     }
 
     override fun toString(): String {
@@ -112,7 +145,16 @@ internal data class NativeServiceConfig(
             "fpsBatchSize=$fpsBatchSize, " +
             "fpsMaxBatchBytes=$fpsMaxBatchBytes, " +
             "fpsQueueDiskQuotaBytes=$fpsQueueDiskQuotaBytes, " +
-            "fpsEventTtlMillis=$fpsEventTtlMillis)"
+            "fpsEventTtlMillis=$fpsEventTtlMillis, " +
+            "memoryEnabled=$memoryEnabled, " +
+            "memoryForegroundSamplingIntervalMillis=$memoryForegroundSamplingIntervalMillis, " +
+            "memoryBackgroundSamplingIntervalMillis=$memoryBackgroundSamplingIntervalMillis, " +
+            "memoryUploadIntervalMillis=$memoryUploadIntervalMillis, " +
+            "memoryBatchSize=$memoryBatchSize, " +
+            "memoryMaxBatchBytes=$memoryMaxBatchBytes, " +
+            "memoryQueueDiskQuotaBytes=$memoryQueueDiskQuotaBytes, " +
+            "memoryEventTtlMillis=$memoryEventTtlMillis, " +
+            "memoryMaxAttempts=$memoryMaxAttempts)"
     }
 
     companion object {
@@ -123,6 +165,9 @@ internal data class NativeServiceConfig(
         const val MAX_FPS_BATCH_SIZE = 50
         const val MIN_FPS_BATCH_BYTES = 16 * 1024
         const val MAX_BATCH_BYTES = 1024 * 1024
+        const val MAX_MEMORY_BATCH_SIZE = 50
+        const val MIN_MEMORY_BATCH_BYTES = 16 * 1024
+        const val MAX_MEMORY_ATTEMPTS = 100
     }
 }
 
@@ -155,6 +200,15 @@ internal fun PerformanceConfig.toNativeServiceConfig(appKey: String): NativeServ
         fpsMaxBatchBytes = jank.fps.maxBatchBytes,
         fpsQueueDiskQuotaBytes = jank.fps.queueDiskQuotaBytes,
         fpsEventTtlMillis = jank.fps.eventTtlMillis,
+        memoryEnabled = memory.enabled,
+        memoryForegroundSamplingIntervalMillis = memory.foregroundSamplingIntervalMillis,
+        memoryBackgroundSamplingIntervalMillis = memory.backgroundSamplingIntervalMillis,
+        memoryUploadIntervalMillis = memory.uploadIntervalMillis,
+        memoryBatchSize = memory.batchSize,
+        memoryMaxBatchBytes = memory.maxBatchBytes,
+        memoryQueueDiskQuotaBytes = memory.queueDiskQuotaBytes,
+        memoryEventTtlMillis = memory.eventTtlMillis,
+        memoryMaxAttempts = memory.maxAttempts,
     )
 }
 

@@ -13,10 +13,64 @@ data class PerformanceConfig(
     val service: ServiceConfig = ServiceConfig(),
     val crash: CrashConfig = CrashConfig(),
     val jank: JankConfig = JankConfig(),
+    val memory: MemoryConfig = MemoryConfig(),
 ) {
     init {
         requireConfig(service.environment.isNotBlank(), "environment must not be blank")
         requireConfig(service.channel.isNotBlank(), "channel must not be blank")
+    }
+}
+
+/** Android 进程内存采集和批量上报配置。 */
+data class MemoryConfig(
+    val enabled: Boolean = true,
+    val foregroundSamplingIntervalMillis: Long = DEFAULT_FOREGROUND_SAMPLING_INTERVAL_MILLIS,
+    val backgroundSamplingIntervalMillis: Long = DEFAULT_BACKGROUND_SAMPLING_INTERVAL_MILLIS,
+    val uploadIntervalMillis: Long = DEFAULT_UPLOAD_INTERVAL_MILLIS,
+    val batchSize: Int = DEFAULT_BATCH_SIZE,
+    val maxBatchBytes: Int = DEFAULT_MAX_BATCH_BYTES,
+    val queueDiskQuotaBytes: Long = DEFAULT_QUEUE_DISK_QUOTA_BYTES,
+    val eventTtlMillis: Long = DEFAULT_EVENT_TTL_MILLIS,
+    val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
+) {
+    init {
+        requireConfig(foregroundSamplingIntervalMillis > 0) {
+            "memory foregroundSamplingIntervalMillis must be positive"
+        }
+        requireConfig(backgroundSamplingIntervalMillis > 0) {
+            "memory backgroundSamplingIntervalMillis must be positive"
+        }
+        requireConfig(uploadIntervalMillis > 0) {
+            "memory uploadIntervalMillis must be positive"
+        }
+        requireConfig(batchSize in 1..MAX_BATCH_SIZE) {
+            "memory batchSize must be between 1 and $MAX_BATCH_SIZE"
+        }
+        requireConfig(maxBatchBytes in MIN_BATCH_BYTES..MAX_BATCH_BYTES) {
+            "memory maxBatchBytes must be between 16 KiB and 1 MiB"
+        }
+        requireConfig(queueDiskQuotaBytes >= maxBatchBytes) {
+            "memory queueDiskQuotaBytes must not be smaller than maxBatchBytes"
+        }
+        requireConfig(eventTtlMillis > 0) { "memory eventTtlMillis must be positive" }
+        requireConfig(maxAttempts in 1..MAX_ATTEMPTS) {
+            "memory maxAttempts must be between 1 and $MAX_ATTEMPTS"
+        }
+    }
+
+    companion object {
+        const val DEFAULT_FOREGROUND_SAMPLING_INTERVAL_MILLIS = 60_000L
+        const val DEFAULT_BACKGROUND_SAMPLING_INTERVAL_MILLIS = 5L * 60L * 1_000L
+        const val DEFAULT_UPLOAD_INTERVAL_MILLIS = 30_000L
+        const val DEFAULT_BATCH_SIZE = 20
+        const val DEFAULT_MAX_BATCH_BYTES = 512 * 1024
+        const val DEFAULT_QUEUE_DISK_QUOTA_BYTES = 20L * 1024L * 1024L
+        const val DEFAULT_EVENT_TTL_MILLIS = 7L * 24L * 60L * 60L * 1_000L
+        const val DEFAULT_MAX_ATTEMPTS = 10
+        const val MAX_BATCH_SIZE = 50
+        const val MIN_BATCH_BYTES = 16 * 1024
+        const val MAX_BATCH_BYTES = 1024 * 1024
+        const val MAX_ATTEMPTS = 100
     }
 }
 

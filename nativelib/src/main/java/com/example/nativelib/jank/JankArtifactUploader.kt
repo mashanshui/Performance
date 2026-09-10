@@ -134,9 +134,16 @@ internal class JankArtifactUploader(
         item: JankQueueItem,
         artifact: File,
     ): JankFlushReport {
-        // 临时测试：保留本地 ZIP，避免再次上传
-        log(item.record.eventId, null, "LOCAL_DELETE_SKIPPED_TEST", "retained")
-        return retry(item, null, "LOCAL_DELETE_SKIPPED_TEST")
+        return if (store.delete(artifact)) {
+            queue.remove(item.record.eventId)
+            log(item.record.eventId, null, "LOCAL_DELETE", "deleted")
+            JankFlushReport(deleted = 1)
+        } else {
+            retry(item, null, "LOCAL_DELETE_FAILED")
+        }
+//        // 临时测试：保留本地 ZIP，避免再次上传
+//        log(item.record.eventId, null, "LOCAL_DELETE_SKIPPED_TEST", "retained")
+//        return retry(item, null, "LOCAL_DELETE_SKIPPED_TEST")
     }
 
     private fun retry(

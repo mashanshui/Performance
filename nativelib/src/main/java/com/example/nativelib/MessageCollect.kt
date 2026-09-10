@@ -35,7 +35,7 @@ object MessageCollect : LooperMonitor.LooperListener {
         LooperMonitor.sMainMonitor.register(this)
     }
 
-    override fun onMessageBegin(log: String) {
+    override fun onMessageBegin(log: String, beginNs: Long) {
         mIsHasBegin = true
         mCurrentMessageStartTime = System.currentTimeMillis()
         mSumMessageCount++
@@ -48,7 +48,7 @@ object MessageCollect : LooperMonitor.LooperListener {
         }
     }
 
-    override fun onMessageEnd(log: String) {
+    override fun onMessageEnd(log: String, beginNs: Long, endNs: Long) {
         if (!mIsHasBegin) {
             return
         }

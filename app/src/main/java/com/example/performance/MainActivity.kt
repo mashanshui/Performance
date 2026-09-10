@@ -2,7 +2,6 @@ package com.example.performance
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.SystemClock
 import android.util.Log
 import android.widget.Button
 import androidx.activity.enableEdgeToEdge
@@ -17,7 +16,8 @@ import com.example.nativelib.PerformanceSdk
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
     private val nativeLib by lazy { NativeLib() }
-    private var messageStartNs: Long = 0L
+    private var timingActive = false
+    private val looperMonitor by lazy { LooperMonitor.sMainMonitor }
 
     /** 创建主页面并绑定卡顿测试、FPS 测试两个入口；执行线程为主线程。 */
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,63 +43,84 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.fpsTestButton).setOnClickListener {
             startActivity(Intent(this, TestFPSActivity::class.java))
         }
-        LooperMonitor.sMainMonitor.register(object : LooperMonitor.LooperListener {
-            /** 记录一次主线程消息开始时间，供既有卡顿演示逻辑使用。 */
-            override fun onMessageBegin(log: String) {
-                messageStartNs = SystemClock.elapsedRealtimeNanos()
-                RheaTrace3.beginStackTiming()
-                Log.e(TAG, "onMessageBegin: ")
-            }
+        looperMonitor.register(messageListener)
+    }
 
-            /** 在主线程消息超过阈值时导出既有卡顿事件。 */
-            override fun onMessageEnd(log: String) {
-                if (messageStartNs == 0L) {
-                    return
-                }
-                val endNs = SystemClock.elapsedRealtimeNanos()
-                if (endNs > messageStartNs + 100000000) {
-                    Log.e(TAG, "onMessageEnd: $endNs")
-                    // 执行消息任务
-                    val report = RheaTrace3.endStackTiming()
-                    for (line in report.split("\n".toRegex()).dropLastWhile { it.isEmpty() }
-                        .toTypedArray()) {
-                        Log.i("StackDiagnostics", line)
-                    }
-                    RheaTrace3.captureStackTrace(false)
-                    val event = RheaTrace3.JankEvent.builder()
-                        .setEventId("demo-jank-$endNs")
-                        .setOccurredAt(System.currentTimeMillis())
-                        .setSessionId("demo-session")
-                        .setScene("main_activity")
-                        .setMessageStartNs(messageStartNs)
-                        .setMessageEndNs(endNs)
-                        .setThresholdNs(100_000_000L)
-                        .setAttemptedSampleCount(1)
-                        .build()
-                    val exportRequest = PerformanceSdk.current()?.exportAndEnqueue(event) { uploadResult ->
-                        Log.e(TAG, "onMessageEnd: "+uploadResult.exportResult.artifact.path)
-                        if (uploadResult.exportResult.isSuccess) {
-                            Log.i(
-                                TAG,
-                                "jank export completed: eventId=${event.eventId} " +
-                                    "status=${uploadResult.exportResult.status.name} " +
-                                    "queued=${uploadResult.queued}",
-                            )
-                        } else {
-                            Log.w(
-                                TAG,
-                                "jank export failed: eventId=${event.eventId} " +
-                                    "status=${uploadResult.exportResult.status.name}",
-                            )
-                        }
-                    } ?: RheaTrace3.ExportRequestResult.NOT_INITIALIZED
-                    Log.i(
-                        TAG,
-                        "jank export request submitted: eventId=${event.eventId} " +
-                            "result=${exportRequest.name}",
-                    )
-                }
+    private val messageListener = object : LooperMonitor.LooperListener {
+        /** 开启消息计时；Printer 恢复丢弃未完成边界时先收尾旧会话。 */
+        override fun onMessageBegin(log: String, beginNs: Long) {
+            if (timingActive) {
+                timingActive = false
+                RheaTrace3.endStackTiming()
             }
-        })
+            RheaTrace3.beginStackTiming()
+            timingActive = true
+            Log.e(TAG, "onMessageBegin: ")
+        }
+
+        /** 在主线程消息超过阈值时导出既有卡顿事件。 */
+        override fun onMessageEnd(log: String, beginNs: Long, endNs: Long) {
+            Log.e(TAG, "onMessageEnd: ${(endNs - beginNs)/1000000}")
+            if (!timingActive) {
+                return
+            }
+            timingActive = false
+            // 每条消息均关闭计时会话，仅长消息输出诊断并导出。
+            val report = RheaTrace3.endStackTiming()
+            if (endNs - beginNs > 40_000_000L) {
+                Log.e(TAG, "onMessageEnd: $endNs")
+                // 执行消息任务
+                for (line in report.split("\n".toRegex()).dropLastWhile { it.isEmpty() }
+                    .toTypedArray()) {
+                    Log.i("StackDiagnostics", line)
+                }
+                RheaTrace3.captureStackTrace(false)
+                val event = RheaTrace3.JankEvent.builder()
+                    .setEventId("demo-jank-$endNs")
+                    .setOccurredAt(System.currentTimeMillis())
+                    .setSessionId("demo-session")
+                    .setScene("main_activity")
+                    .setMessageStartNs(beginNs)
+                    .setMessageEndNs(endNs)
+                    .setThresholdNs(40_000_000L)
+                    .setAttemptedSampleCount(1)
+                    .build()
+                val exportRequest = PerformanceSdk.current()?.exportAndEnqueue(event) { uploadResult ->
+                    Log.e(TAG, "onMessageEnd: "+uploadResult.exportResult.artifact.path)
+                    if (uploadResult.exportResult.isSuccess) {
+                        Log.i(
+                            TAG,
+                            "jank export completed: eventId=${event.eventId} " +
+                                "status=${uploadResult.exportResult.status.name} " +
+                                "queued=${uploadResult.queued}",
+                        )
+                    } else {
+                        Log.w(
+                            TAG,
+                            "jank export failed: eventId=${event.eventId} " +
+                                "status=${uploadResult.exportResult.status.name}",
+                        )
+                    }
+                } ?: RheaTrace3.ExportRequestResult.NOT_INITIALIZED
+                Log.i(
+                    TAG,
+                    "jank export request submitted: eventId=${event.eventId} " +
+                        "result=${exportRequest.name}",
+                )
+            }
+        }
+    }
+
+    /** 销毁消息本身可能已开启计时，注销不补回调，因此在这里主动收尾。 */
+    override fun onDestroy() {
+        looperMonitor.unregister(messageListener)
+        try {
+            if (timingActive) {
+                timingActive = false
+                RheaTrace3.endStackTiming()
+            }
+        } finally {
+            super.onDestroy()
+        }
     }
 }

@@ -82,7 +82,7 @@ class MessageTimeoutMonitor private constructor() : LooperMonitor.LooperListener
     /**
      * 消息开始执行时的钩子方法
      */
-    override fun onMessageBegin(log: String) {
+    override fun onMessageBegin(log: String, beginNs: Long) {
         val now = System.currentTimeMillis()
         currentMessageStartTime.set(now)
         // 计算目标超时时间 = 开始时间 + 超时时长
@@ -94,7 +94,7 @@ class MessageTimeoutMonitor private constructor() : LooperMonitor.LooperListener
     /**
      * 消息执行完毕时的钩子方法
      */
-    override fun onMessageEnd(log: String) {
+    override fun onMessageEnd(log: String, beginNs: Long, endNs: Long) {
         val now = System.currentTimeMillis()
         // 仅更新目标超时时间（无需取消监控，由监控循环自动识别）
         targetTimeoutTime.set(now + timeoutThreshold)

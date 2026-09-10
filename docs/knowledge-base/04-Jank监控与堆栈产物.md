@@ -12,9 +12,10 @@
 
 ~~~text
 LooperMonitor.onMessageBegin
-  → 保存 elapsedRealtimeNanos 开始时间
+  → 使用监控器提供的 beginNs，开启 Rhea timing
 LooperMonitor.onMessageEnd
-  → 开始值非零，消息耗时 > 100ms
+  → 每条消息关闭 Rhea timing
+  → 使用监控器提供的 beginNs/endNs，消息耗时 > 100ms 时继续
   → RheaTrace3.captureStackTrace(false)
   → 构造 JankEvent
   → PerformanceSdk.current()?.exportAndEnqueue
@@ -25,6 +26,8 @@ LooperMonitor.onMessageEnd
 ~~~
 
 `messageStartNs/messageEndNs` 使用同一单调时钟，`occurredAt` 使用墙上时钟毫秒。示例的 `attemptedSampleCount=1` 和 `demo-session` 是演示值。消息结束时调用抓栈，不足以证明整个消息区间具有完整采样，更不能据此推导方法精确耗时。
+
+监听器由 MainActivity 持有，在 onDestroy 注销；若销毁时仍有计时会话则主动关闭，避免短消息和 Activity 重建留下会话。
 
 ## 导出、入队和确认的区别
 

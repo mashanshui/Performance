@@ -338,3 +338,41 @@ close 在专用后台线程执行 FPS 持久化，但调用线程会等待完成
 3. 打开对象分配、JNI Hook 或堆栈统计会增加采集开销，建议仅在确有诊断需求时启用。
 4. 启用网络日志只用于排查请求问题，生产环境通常保持关闭。
 5. App Key 通过本地构建属性或安全的 CI 注入，不要写入公开仓库。
+
+## Looper 独立配置
+
+`LooperMonitor` 不由 `PerformanceSdk` 自动启动或关闭。使用 `LooperMonitor.sMainMonitor` 或
+`LooperMonitor.of(looper)` 获取共享实例，再注册监听；Activity 销毁时只注销自己的监听。
+
+| RecordingConfig 字段 | 默认值 | 含义与限制 |
+| --- | --- | --- |
+| historyEnabled | false | 保存已完成消息逐条历史 |
+| denseEnabled | false | 保存近期消息并累计完成消息数、执行耗时；独立于历史开关 |
+| historyCapacity | 200 | 已完成历史容量，必须大于 0 |
+| recentCapacity | 5000 | 近期列表容量，必须大于 0；累计计数不受淘汰影响 |
+
+```kotlin
+val monitor = LooperMonitor.sMainMonitor
+monitor.configureRecording(
+    LooperMonitor.RecordingConfig(historyEnabled = true, denseEnabled = true),
+)
+val listener = object : LooperMonitor.LooperListener {
+    override fun onMessageBegin(log: String, beginNs: Long) {
+        // 仅执行轻量操作；时间基准是 elapsedRealtimeNanos。
+    }
+    override fun onMessageEnd(log: String, beginNs: Long, endNs: Long) {
+        val durationNs = endNs - beginNs
+        // 消费本条消息耗时，不在此执行阻塞 I/O。
+    }
+}
+monitor.register(listener)
+val history = monitor.historySnapshot(includeCurrent = false)
+val recent = monitor.recentSnapshot()
+monitor.clearRecentMessages()
+// 页面退出时注销；只有整个共享监控功能退出时才调用 monitor.close()。
+monitor.unregister(listener)
+```
+
+实际改变配置会清空两类记录，从下一条完整消息生效。历史快照默认可附带执行中消息；
+近期清空前已开始的消息不计入新统计周期。状态、回调配对与反射降级详见
+[Looper 专题](../docs/knowledge-base/06-Looper消息监控与超时回溯.md)。

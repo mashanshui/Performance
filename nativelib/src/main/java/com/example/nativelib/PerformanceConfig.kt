@@ -154,7 +154,7 @@ data class ServiceConfig(
         const val DEFAULT_BASE_URL = "http://192.168.0.150:8080"
         const val DEFAULT_ENVIRONMENT = "debug"
         const val DEFAULT_CHANNEL = "official"
-        const val DEFAULT_SCHEMA_VERSION = 1
+        const val DEFAULT_SCHEMA_VERSION = 2
         const val DEFAULT_TIMEOUT_MILLIS = 3_000L
         const val MAX_ENVIRONMENT_LENGTH = 64
         const val MAX_CHANNEL_LENGTH = 128
@@ -164,7 +164,6 @@ data class ServiceConfig(
 /** Crash 上报配置；应用元数据为空时由 SDK 从 Application 自动解析。 */
 data class CrashConfig(
     val enabled: Boolean = true,
-    val appId: String? = null,
     val appVersion: String? = null,
     val versionCode: Int? = null,
     val buildId: String? = null,
@@ -174,7 +173,6 @@ data class CrashConfig(
     val uploadIntervalMillis: Long = DEFAULT_UPLOAD_INTERVAL_MILLIS,
 ) {
     init {
-        requireOptionalText(appId, "appId")
         requireOptionalText(appVersion, "appVersion")
         requireConfig(versionCode == null || versionCode >= 0) {
             "versionCode must be non-negative"

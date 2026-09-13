@@ -57,7 +57,7 @@ internal class CrashEventFactory(
             occurredAt = occurredAt,
             sessionId = sessionId.take(MAX_SESSION_ID_LENGTH),
             anonymousDeviceId = anonymousDeviceId.take(MAX_DEVICE_ID_LENGTH),
-            appId = config.appId.take(MAX_APP_ID_LENGTH),
+            packageName = config.packageName,
             appVersion = config.appVersion.take(MAX_TEXT_LENGTH),
             versionCode = config.versionCode,
             buildId = config.buildId.take(MAX_BUILD_ID_LENGTH),
@@ -75,7 +75,6 @@ internal class CrashEventFactory(
         const val MAX_EVENT_ID_LENGTH = 128
         const val MAX_SESSION_ID_LENGTH = 128
         const val MAX_DEVICE_ID_LENGTH = 256
-        const val MAX_APP_ID_LENGTH = 128
         const val MAX_BUILD_ID_LENGTH = 256
         const val MAX_CHANNEL_LENGTH = 128
         const val MAX_DEVICE_MODEL_LENGTH = 256

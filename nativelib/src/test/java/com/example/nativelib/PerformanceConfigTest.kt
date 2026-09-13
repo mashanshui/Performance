@@ -13,6 +13,7 @@ class PerformanceConfigTest {
         val config = PerformanceConfig()
 
         assertTrue(config.crash.enabled)
+        assertEquals(ServiceConfig.DEFAULT_SCHEMA_VERSION, config.service.schemaVersion)
         assertEquals(CrashConfig.DEFAULT_BATCH_SIZE, config.crash.batchSize)
         assertEquals(CrashConfig.DEFAULT_MAX_BATCH_BYTES, config.crash.maxBatchBytes)
         assertEquals(CrashConfig.DEFAULT_UPLOAD_INTERVAL_MILLIS, config.crash.uploadIntervalMillis)

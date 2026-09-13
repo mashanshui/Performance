@@ -33,6 +33,7 @@ class NativeServiceConfigTest {
         assertEquals(ServiceConfig.DEFAULT_BASE_URL, config.baseUrl)
         assertEquals(ServiceConfig.DEFAULT_ENVIRONMENT, config.environment)
         assertEquals(ServiceConfig.DEFAULT_CHANNEL, config.channel)
+        assertEquals(ServiceConfig.DEFAULT_SCHEMA_VERSION, config.schemaVersion)
         assertEquals(CrashConfig.DEFAULT_BATCH_SIZE, config.crashBatchSize)
         assertEquals(CrashConfig.DEFAULT_MAX_BATCH_BYTES, config.crashMaxBatchBytes)
         assertEquals(JankConfig.DEFAULT_MAX_ARTIFACT_BYTES, config.jankMaxArtifactBytes)

@@ -12,7 +12,7 @@ data class CrashEvent(
     val occurredAt: Long,
     val sessionId: String,
     val anonymousDeviceId: String,
-    val appId: String? = null,
+    val packageName: String,
     val appVersion: String,
     val versionCode: Int,
     val buildId: String,

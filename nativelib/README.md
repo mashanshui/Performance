@@ -1,9 +1,9 @@
 # nativelib 本地发布
 
 项目机制和源码调用链见[知识库导航](../docs/knowledge-base/README.md)，开发规范见
-[AGENTS.md](../AGENTS.md)。当前客户端与服务端存在待对齐项，尤其是 Crash schema/包名字段，
+[AGENTS.md](../AGENTS.md)。Crash 客户端已按服务端 schema v2/`packageName` 契约同步，
 接入前请查阅[协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)；本文的发布和初始化
-示例不代表已完成当前服务端联调。
+示例不代表已完成修复后的真实服务端联调。
 
 `nativelib` 已配置 Android Library 的 Maven 发布能力，默认发布 `release` 变体。
 

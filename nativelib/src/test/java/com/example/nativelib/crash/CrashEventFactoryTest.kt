@@ -37,6 +37,8 @@ class CrashEventFactoryTest {
         val crash = event.crash
 
         assertEquals("crash", event.eventType)
+        assertEquals(2, event.schemaVersion)
+        assertEquals("com.example.performance", event.packageName)
         assertEquals(1_726_000_000_000, event.occurredAt)
         assertEquals("wifi", event.networkType)
         assertNotNull(crash)
@@ -74,7 +76,7 @@ class CrashEventFactoryTest {
 
     private fun testConfig(): CrashReporterConfig {
         return CrashReporterConfig(
-            appId = "demo-app",
+            packageName = "com.example.performance",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",
@@ -88,7 +90,7 @@ class CrashEventFactoryTest {
             appKey = "test-app-key",
             environment = "test",
             channel = "unit-test",
-            schemaVersion = 1,
+            schemaVersion = 2,
             enableNetworkLogging = false,
             connectTimeoutMillis = 3_000L,
             readTimeoutMillis = 3_000L,

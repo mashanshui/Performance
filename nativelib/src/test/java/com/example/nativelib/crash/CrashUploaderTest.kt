@@ -27,6 +27,7 @@ class CrashUploaderTest {
             sent.set(request)
             NetworkResult.Success(
                 CrashBatchResponse(
+                    requestId = "request-1",
                     accepted = 1,
                     rejected = 1,
                     errors = listOf(
@@ -89,6 +90,24 @@ class CrashUploaderTest {
         assertEquals(1, queue.peekBatch(1, Long.MAX_VALUE).single().record.attempts)
     }
 
+    @Test
+    fun incompleteSuccessCountsAreRetriedInsteadOfAcknowledged() = runBlocking {
+        val queue = FileCrashQueue(temporaryFolder.newFolder("queue"))
+        queue.enqueue(sampleEvent("event-5"))
+        val uploader = uploader(queue) {
+            NetworkResult.Success(
+                CrashBatchResponse(requestId = "request-1"),
+                statusCode = 200,
+            )
+        }
+
+        val report = uploader.flush(maxBatches = 1)
+
+        assertEquals(1, report.eventsRetried)
+        assertEquals(1, queue.count())
+        assertEquals(1, queue.peekBatch(1, Long.MAX_VALUE).single().record.attempts)
+    }
+
     private fun uploader(
         queue: FileCrashQueue,
         sender: CrashBatchSender,
@@ -101,7 +120,7 @@ class CrashUploaderTest {
                 appKey = "test-app-key",
                 environment = "test",
                 channel = "unit-test",
-                schemaVersion = 1,
+                schemaVersion = 2,
                 enableNetworkLogging = false,
                 connectTimeoutMillis = 3_000L,
                 readTimeoutMillis = 3_000L,
@@ -121,13 +140,13 @@ class CrashUploaderTest {
 
     private fun sampleEvent(eventId: String): CrashEvent {
         return CrashEvent(
-            schemaVersion = 1,
+            schemaVersion = 2,
             eventId = eventId,
             eventType = "crash",
             occurredAt = 1_726_000_000_000,
             sessionId = "session-1",
             anonymousDeviceId = "install-1",
-            appId = "demo-app",
+            packageName = "com.example.performance",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",

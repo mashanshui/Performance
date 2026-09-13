@@ -7,12 +7,12 @@ import java.util.concurrent.CancellationException
 
 class CrashNetworkClient internal constructor(
     private val api: CrashIngestApi,
-    private val schemaVersion: Int = 1,
+    private val schemaVersion: Int = 2,
 ) {
     suspend fun sendBatch(request: CrashBatchRequest): NetworkResult<CrashBatchResponse> {
         return try {
             val response = api.ingest(schemaVersion, request)
-            if (response.isSuccessful) {
+            if (response.code() == HTTP_OK) {
                 val body = response.body()
                 if (body == null) {
                     NetworkResult.SerializationError(
@@ -46,6 +46,7 @@ class CrashNetworkClient internal constructor(
     }
 
     private companion object {
+        const val HTTP_OK = 200
         const val MAX_ERROR_BODY_LENGTH = 8 * 1024
         const val RETRY_AFTER_HEADER = "Retry-After"
 

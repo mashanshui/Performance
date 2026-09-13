@@ -54,13 +54,13 @@ class FileCrashQueueTest {
 
     private fun sampleEvent(eventId: String): CrashEvent {
         return CrashEvent(
-            schemaVersion = 1,
+            schemaVersion = 2,
             eventId = eventId,
             eventType = "app_start",
             occurredAt = 1_726_000_000_000,
             sessionId = "session-1",
             anonymousDeviceId = "install-1",
-            appId = "demo-app",
+            packageName = "com.example.performance",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",

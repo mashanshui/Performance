@@ -7,7 +7,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 data class NetworkConfig(
     val baseUrl: String,
     val appKey: String,
-    val schemaVersion: Int = 1,
+    val schemaVersion: Int = 2,
     val connectTimeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
     val readTimeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
     val writeTimeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,

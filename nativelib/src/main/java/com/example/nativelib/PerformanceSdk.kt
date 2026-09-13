@@ -278,7 +278,7 @@ class PerformanceSdk private constructor(
 
                     if (serviceConfig.crashEnabled) {
                         val crashConfig = CrashReporterConfig(
-                            appId = config.crash.appId ?: metadata.packageName,
+                            packageName = metadata.packageName,
                             appVersion = config.crash.appVersion ?: metadata.versionName,
                             versionCode = config.crash.versionCode ?: metadata.versionCode,
                             buildId = buildId,

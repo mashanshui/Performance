@@ -54,7 +54,7 @@ class NetworkClientTest {
         )
 
         val result = runBlocking {
-            createClient(schemaVersion = 7).sendBatch(sampleRequest())
+            createClient(schemaVersion = 2).sendBatch(sampleRequest())
         }
 
         assertTrue(result is NetworkResult.Success)
@@ -66,16 +66,18 @@ class NetworkClientTest {
         assertEquals("POST", recordedRequest.method)
         assertEquals("/api/ingest/v1/batches", recordedRequest.path)
         assertEquals("secret-app-key", recordedRequest.getHeader("X-App-Key"))
-        assertEquals("7", recordedRequest.getHeader("X-Schema-Version"))
+        assertEquals("2", recordedRequest.getHeader("X-Schema-Version"))
         assertTrue(recordedRequest.getHeader("Content-Type").orEmpty().startsWith("application/json"))
 
         val body = JsonParser.parseString(recordedRequest.body.readUtf8()).asJsonObject
         assertEquals("request-1", body.get("requestId").asString)
-        assertEquals("crash-1", body.getAsJsonArray("events")[0].asJsonObject.get("eventId").asString)
+        val event = body.getAsJsonArray("events")[0].asJsonObject
+        assertEquals("crash-1", event.get("eventId").asString)
+        assertEquals("com.example.performance", event.get("packageName").asString)
+        assertFalse(event.has("appId"))
         assertEquals(
             "java.lang.IllegalStateException",
-            body.getAsJsonArray("events")[0].asJsonObject
-                .getAsJsonObject("crash")
+            event.getAsJsonObject("crash")
                 .getAsJsonArray("throwableChain")[0].asJsonObject
                 .get("type").asString,
         )
@@ -147,6 +149,22 @@ class NetworkClientTest {
         assertTrue(rateLimited is NetworkResult.HttpError)
         assertTrue((rateLimited as NetworkResult.HttpError).retryable)
         assertEquals(429, rateLimited.statusCode)
+    }
+
+    @Test
+    fun sendBatchTreatsOnlyHttp200AsSuccessful() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(201)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{\"requestId\":\"request-1\",\"accepted\":1}"),
+        )
+
+        val result = runBlocking { createClient().sendBatch(sampleRequest()) }
+
+        assertTrue(result is NetworkResult.HttpError)
+        assertEquals(201, (result as NetworkResult.HttpError).statusCode)
+        assertFalse(result.retryable)
     }
 
     @Test
@@ -266,7 +284,7 @@ class NetworkClientTest {
     }
 
     private fun createClient(
-        schemaVersion: Int = 1,
+        schemaVersion: Int = 2,
     ): CrashNetworkClient {
         return NetworkClientFactory.create(
             NetworkConfig(
@@ -282,13 +300,13 @@ class NetworkClientTest {
             requestId = "request-1",
             events = listOf(
                 CrashEvent(
-                    schemaVersion = 1,
+                    schemaVersion = 2,
                     eventId = "crash-1",
                     eventType = "crash",
                     occurredAt = 1_726_000_000_000,
                     sessionId = "session-1",
                     anonymousDeviceId = "device-1",
-                    appId = "demo-app",
+                    packageName = "com.example.performance",
                     appVersion = "1.0",
                     versionCode = 1,
                     buildId = "build-1",

@@ -105,6 +105,9 @@ internal class CrashUploader(
         batch: SelectedBatch,
         response: CrashBatchResponse,
     ): CrashFlushReport {
+        if (!isValidSuccessResponse(batch, response)) {
+            return retry(batch.items, response.retryAfterSeconds, "invalid_success_response")
+        }
         if (response.retryable && (
                 response.errors.isEmpty() ||
                     response.errors.any { it.index == null && it.eventId == null }
@@ -164,6 +167,39 @@ internal class CrashUploader(
             eventsAcknowledged = acknowledgedItems.size,
             eventsDeadLettered = permanentItems.size,
         )
+    }
+
+    /** 校验服务端成功响应的请求标识、计数和错误定位，避免误删未确认事件。 */
+    private fun isValidSuccessResponse(
+        batch: SelectedBatch,
+        response: CrashBatchResponse,
+    ): Boolean {
+        if (response.requestId != batch.request.requestId) {
+            return false
+        }
+        if (response.accepted < 0 || response.rejected < 0 || response.duplicate < 0) {
+            return false
+        }
+
+        // 服务端的三类计数必须完整覆盖当前批次。
+        val reportedTotal = response.accepted.toLong() +
+            response.rejected.toLong() +
+            response.duplicate.toLong()
+        if (reportedTotal != batch.request.events.size.toLong()) {
+            return false
+        }
+
+        // 一条事件允许对应多条错误，因此按事件索引去重后与 rejected 对比。
+        val eventIndexById = batch.request.events
+            .mapIndexed { index, event -> event.eventId to index }
+            .toMap()
+        val rejectedIndices = mutableSetOf<Int>()
+        for (error in response.errors) {
+            val index = resolveErrorIndex(error, batch.request.events, eventIndexById)
+                ?: return false
+            rejectedIndices += index
+        }
+        return response.rejected == rejectedIndices.size
     }
 
     private fun handleHttpError(

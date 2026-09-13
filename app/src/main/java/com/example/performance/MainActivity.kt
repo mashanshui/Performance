@@ -46,7 +46,16 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.memoryLeakTestButton).setOnClickListener {
             startActivity(Intent(this, TestMemoryLeakActivity::class.java))
         }
+        // Crash 测试必须保留为未捕获异常，才能进入 SDK 的默认异常处理器。
+        findViewById<Button>(R.id.crashTestButton).setOnClickListener {
+            triggerCrashUploadTest()
+        }
         looperMonitor.register(messageListener)
+    }
+
+    /** 主动制造未捕获 JVM 异常，验证 Crash 事件落盘和崩溃前同步上传。 */
+    private fun triggerCrashUploadTest() {
+        throw IllegalStateException("Crash upload test triggered from MainActivity")
     }
 
     private val messageListener = object : LooperMonitor.LooperListener {

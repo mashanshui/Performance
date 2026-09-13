@@ -5,9 +5,9 @@
 `PerformanceConfig` 内。
 
 项目架构和调用链见[知识库导航](../docs/knowledge-base/README.md)。本文记录客户端当前配置；
-Crash 的默认 schema v1 与 appId 字段尚未对齐所核对服务端的 v2/packageName 契约，详见
-[协议差异](../docs/knowledge-base/09-服务端对接与数据协议.md)。仅修改 schemaVersion 不能解决
-事件字段差异。
+Crash 默认使用服务端要求的 schema v2 和 `packageName` 字段，详见
+[服务端协议](../docs/knowledge-base/09-服务端对接与数据协议.md)。上传事件的 `packageName`
+始终来自 Application 包名；`applicationPackage` 只用于异常堆栈中的应用帧判断。
 
 ## 1. 最小初始化
 
@@ -101,7 +101,7 @@ val performance = PerformanceSdk.initialize(
 | `baseUrl` | `http://192.168.0.150:8080` | 服务端根地址，只允许 HTTP/HTTPS，不能带查询参数或片段 |
 | `environment` | `debug` | 环境标识，最长 64 个字符 |
 | `channel` | `official` | 发布渠道，最长 128 个字符 |
-| `schemaVersion` | `1` | Crash 请求协议版本 |
+| `schemaVersion` | `2` | Crash 请求协议版本 |
 | `connectTimeoutMillis` | `3000` | 连接超时 |
 | `readTimeoutMillis` | `3000` | 读取超时 |
 | `writeTimeoutMillis` | `3000` | 写入超时 |
@@ -112,17 +112,17 @@ val performance = PerformanceSdk.initialize(
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
 | `enabled` | `true` | 是否启用 Crash 捕获和上传 |
-| `appId` | 从 Application 包名解析 | Crash 事件中的应用标识 |
 | `appVersion` | 从 Application 版本名解析 | Crash 事件中的版本名 |
 | `versionCode` | 从 Application 解析 | 允许覆盖为非负整数 |
 | `buildId` | `versionName-versionCode` | 允许覆盖，最长 256 个字符 |
-| `applicationPackage` | 从 Application 包名解析 | 用于判断异常堆栈中的应用帧 |
+| `applicationPackage` | 从 Application 包名解析 | 仅用于判断异常堆栈中的应用帧；不改变上传的 `packageName` |
 | `batchSize` | `20` | 每批最多事件数，范围 `1..50` |
 | `maxBatchBytes` | `512 KiB` | 单批请求大小，范围 `16 KiB..1 MiB` |
 | `uploadIntervalMillis` | `30000` | 周期上传间隔，必须为正数 |
 
-应用元数据默认自动解析。只有需要替换服务端应用标识、版本信息或堆栈包名判断规则时，
-才需要覆盖 `appId`、`appVersion` 或 `applicationPackage`。
+应用元数据默认自动解析。上传的 `packageName` 必须与 App Key 绑定的 Application ID
+一致，不单独提供覆盖项。只有需要替换版本信息或堆栈包名判断规则时，才需要覆盖
+`appVersion` 或 `applicationPackage`。
 
 例如关闭 Crash，或为构建系统提供固定的版本信息：
 
@@ -130,7 +130,6 @@ val performance = PerformanceSdk.initialize(
 val config = PerformanceConfig(
     crash = CrashConfig(
         enabled = false,
-        appId = "my-product",
         appVersion = "2026.09.0",
         versionCode = 900,
         buildId = "my-product-2026.09.0-900",

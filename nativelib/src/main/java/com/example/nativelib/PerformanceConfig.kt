@@ -14,6 +14,7 @@ data class PerformanceConfig(
     val crash: CrashConfig = CrashConfig(),
     val jank: JankConfig = JankConfig(),
     val memory: MemoryConfig = MemoryConfig(),
+    val memoryLeak: MemoryLeakConfig = MemoryLeakConfig(),
 ) {
     init {
         requireConfig(service.environment.isNotBlank(), "environment must not be blank")
@@ -71,6 +72,46 @@ data class MemoryConfig(
         const val MIN_BATCH_BYTES = 16 * 1024
         const val MAX_BATCH_BYTES = 1024 * 1024
         const val MAX_ATTEMPTS = 100
+    }
+}
+
+/** Android Activity 泄漏检测与 KOOM dump 联动配置；与内存指标采集完全独立。 */
+data class MemoryLeakConfig(
+    val enabled: Boolean = true,
+    val foregroundScanIntervalMillis: Long = DEFAULT_FOREGROUND_SCAN_INTERVAL_MILLIS,
+    val backgroundScanIntervalMillis: Long = DEFAULT_BACKGROUND_SCAN_INTERVAL_MILLIS,
+    val maxRecheckCount: Int = DEFAULT_MAX_RECHECK_COUNT,
+    val gcDelayMillis: Long = DEFAULT_GC_DELAY_MILLIS,
+    val skipWhenDebuggerConnected: Boolean = DEFAULT_SKIP_WHEN_DEBUGGER_CONNECTED,
+) {
+    init {
+        requireConfig(
+            foregroundScanIntervalMillis in 1L..MAX_SCAN_INTERVAL_MILLIS,
+        ) {
+            "memoryLeak foregroundScanIntervalMillis must be between 1ms and 7 days"
+        }
+        requireConfig(
+            backgroundScanIntervalMillis in 1L..MAX_SCAN_INTERVAL_MILLIS,
+        ) {
+            "memoryLeak backgroundScanIntervalMillis must be between 1ms and 7 days"
+        }
+        requireConfig(maxRecheckCount in 1..MAX_RECHECK_COUNT) {
+            "memoryLeak maxRecheckCount must be between 1 and $MAX_RECHECK_COUNT"
+        }
+        requireConfig(gcDelayMillis in 1L..MAX_GC_DELAY_MILLIS) {
+            "memoryLeak gcDelayMillis must be between 1ms and 5 minutes"
+        }
+    }
+
+    companion object {
+        const val DEFAULT_FOREGROUND_SCAN_INTERVAL_MILLIS = 60_000L
+        const val DEFAULT_BACKGROUND_SCAN_INTERVAL_MILLIS = 20L * 60L * 1_000L
+        const val DEFAULT_MAX_RECHECK_COUNT = 10
+        const val DEFAULT_GC_DELAY_MILLIS = 2_000L
+        const val DEFAULT_SKIP_WHEN_DEBUGGER_CONNECTED = true
+        const val MAX_SCAN_INTERVAL_MILLIS = 7L * 24L * 60L * 60L * 1_000L
+        const val MAX_RECHECK_COUNT = 100
+        const val MAX_GC_DELAY_MILLIS = 5L * 60L * 1_000L
     }
 }
 

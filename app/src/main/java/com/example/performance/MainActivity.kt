@@ -43,6 +43,9 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.fpsTestButton).setOnClickListener {
             startActivity(Intent(this, TestFPSActivity::class.java))
         }
+        findViewById<Button>(R.id.memoryLeakTestButton).setOnClickListener {
+            startActivity(Intent(this, TestMemoryLeakActivity::class.java))
+        }
         looperMonitor.register(messageListener)
     }
 
@@ -55,19 +58,19 @@ class MainActivity : AppCompatActivity() {
             }
             RheaTrace3.beginStackTiming()
             timingActive = true
-            Log.e(TAG, "onMessageBegin: ")
+//            Log.e(TAG, "onMessageBegin: ")
         }
 
         /** 在主线程消息超过阈值时导出既有卡顿事件。 */
         override fun onMessageEnd(log: String, beginNs: Long, endNs: Long) {
-            Log.e(TAG, "onMessageEnd: ${(endNs - beginNs)/1000000}")
+//            Log.e(TAG, "onMessageEnd: ${(endNs - beginNs)/1000000}")
             if (!timingActive) {
                 return
             }
             timingActive = false
             // 每条消息均关闭计时会话，仅长消息输出诊断并导出。
             val report = RheaTrace3.endStackTiming()
-            if (endNs - beginNs > 40_000_000L) {
+            if (endNs - beginNs > 60_000_000L) {
                 Log.e(TAG, "onMessageEnd: $endNs")
                 // 执行消息任务
                 for (line in report.split("\n".toRegex()).dropLastWhile { it.isEmpty() }
@@ -82,7 +85,7 @@ class MainActivity : AppCompatActivity() {
                     .setScene("main_activity")
                     .setMessageStartNs(beginNs)
                     .setMessageEndNs(endNs)
-                    .setThresholdNs(40_000_000L)
+                    .setThresholdNs(60_000_000L)
                     .setAttemptedSampleCount(1)
                     .build()
                 val exportRequest = PerformanceSdk.current()?.exportAndEnqueue(event) { uploadResult ->

@@ -9,7 +9,11 @@ import com.example.nativelib.crash.CrashReporter
 import com.example.nativelib.crash.CrashReporterConfig
 import com.example.nativelib.jank.JankArtifactInitResult
 import com.example.nativelib.jank.JankArtifactReporter
+import com.example.nativelib.memory.leak.ActivityLeakWatcher
+import com.example.nativelib.memory.leak.MemoryLeakReportReporter
+import com.example.nativelib.memory.leak.MemoryLeakWatcher
 import com.example.nativelib.memory.MemoryReporter
+import com.example.nativelib.memory.oom.OOMMonitorInitTask
 import com.example.nativelib.network.NetworkClientFactory
 
 /**
@@ -59,6 +63,28 @@ internal interface PerformanceComponentFactory {
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): MemoryReporter
+
+    /** 判断当前进程和 Android API 是否满足 KOOM Java leak 的能力边界。 */
+    fun isMemoryLeakAvailable(application: Application): Boolean
+
+    /** 初始化 KOOM 以及内存泄漏报告持久上传器。 */
+    fun initializeKoom(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    )
+
+    /** 创建 Activity 弱引用检测器；默认回调只负责调用 KOOM dump。 */
+    fun initializeMemoryLeak(
+        application: Application,
+        memoryLeakConfig: MemoryLeakConfig,
+    ): MemoryLeakWatcher
+
+    /** 停止本 SDK 启动的 KOOM 循环，不重置 KOOM 的进程级 dump 状态。 */
+    fun stopKoom()
 
     fun closeJank()
 
@@ -144,6 +170,44 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             anonymousDeviceId = anonymousDeviceId,
             networkFactory = networkFactory,
         )
+    }
+
+    override fun isMemoryLeakAvailable(application: Application): Boolean {
+        return MemoryReporter.isProcessAvailable(application) && OOMMonitorInitTask.isSupported()
+    }
+
+    override fun initializeKoom(
+        application: Application,
+        serviceConfig: NativeServiceConfig,
+        metadata: ApplicationMetadata,
+        buildId: String,
+        anonymousDeviceId: String,
+        networkFactory: NetworkClientFactory,
+    ) {
+        val reportReporter = MemoryLeakReportReporter.create(
+            application = application,
+            serviceConfig = serviceConfig,
+            metadata = metadata,
+            buildId = buildId,
+            anonymousDeviceId = anonymousDeviceId,
+            networkFactory = networkFactory,
+        )
+        OOMMonitorInitTask.init(application, reportReporter)
+    }
+
+    override fun initializeMemoryLeak(
+        application: Application,
+        memoryLeakConfig: MemoryLeakConfig,
+    ): MemoryLeakWatcher {
+        return ActivityLeakWatcher(
+            application = application,
+            config = memoryLeakConfig,
+            onLeakDetected = { OOMMonitorInitTask.dump() },
+        )
+    }
+
+    override fun stopKoom() {
+        OOMMonitorInitTask.stop()
     }
 
     override fun closeJank() {

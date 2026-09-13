@@ -6,6 +6,7 @@ import com.example.nativelib.LooperMonitor
 import com.example.nativelib.FpsConfig
 import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.JankConfig
+import com.example.nativelib.MemoryLeakConfig
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.PerformanceSdk
 import com.example.nativelib.thread.ThreadUtils
@@ -24,7 +25,7 @@ class App : Application() {
         runCatching {
             performanceSdk = PerformanceSdk.initialize(
                 application = this,
-                appKey = "apm_ak_wZE86RWHGz6Eg6WpI8MTS8d_l8rROU3JiD4ITFr3UC8",
+                appKey = "apm_ak_UowWFkzFaZcYmP64C761KRR41ySgjuZ6FL9-P5bJ6x8",
                 config = PerformanceConfig(
                     jank = JankConfig(
                         fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
@@ -34,7 +35,22 @@ class App : Application() {
                         enableRusage = true,
                         enableJniHook = true
                     ),
+                    memoryLeak = MemoryLeakConfig(
+                        enabled = true,
+                        foregroundScanIntervalMillis = 5_000L,
+                        backgroundScanIntervalMillis = 5_000L,
+                        maxRecheckCount = 1,
+                        gcDelayMillis = 1_000L,
+                        // Android Studio 连接调试器时也执行检测
+                        skipWhenDebuggerConnected = false,
+                    ),
                 ),
+            )
+        }.onSuccess {
+            Log.i(
+                TAG,
+                "Performance SDK initialized: memoryLeakAvailable=" +
+                    "${performanceSdk?.isMemoryLeakAvailable == true}",
             )
         }.onFailure {
             Log.e(TAG, "Performance SDK initialization failed", it)

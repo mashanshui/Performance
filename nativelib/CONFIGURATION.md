@@ -26,7 +26,7 @@ class App : Application() {
 }
 ```
 
-不传第三个参数时，Crash、线上卡顿（Jank）和主进程内存指标都会启用，并使用本文的默认值。
+不传第三个参数时，Crash、线上卡顿（Jank）、主进程内存指标以及 Activity 泄漏检测都会启用，并使用本文的默认值。
 
 ### 1.1 从本地 Gradle 属性注入 App Key
 
@@ -77,6 +77,14 @@ val performance = PerformanceSdk.initialize(
             foregroundSamplingIntervalMillis = 60_000L,
             backgroundSamplingIntervalMillis = 5L * 60L * 1_000L,
             uploadIntervalMillis = 30_000L,
+        ),
+        memoryLeak = MemoryLeakConfig(
+            enabled = true,
+            foregroundScanIntervalMillis = 60_000L,
+            backgroundScanIntervalMillis = 20L * 60L * 1_000L,
+            maxRecheckCount = 10,
+            gcDelayMillis = 2_000L,
+            skipWhenDebuggerConnected = true,
         ),
     ),
 )
@@ -227,6 +235,36 @@ FPS 计算。`VERBOSE` 会打印原始帧耗时、帧预算、有效耗时及首
 `accepted` 或 `duplicate` 后才删除。网络中断、408、429 和 5xx 会按 `Retry-After` 或退避重试，
 永久错误和达到最大次数的事件进入 `dead-letter`。
 
+### 3.6 `MemoryLeakConfig`
+
+Activity 泄漏检测与 `MemoryConfig` 的 PSS/VSS/Java heap 指标采集相互独立，不产生
+`memory_sample`，也不使用内存指标的持久队列。SDK 只在主进程、Android API 21..36
+范围内创建这条链路；不满足条件时跳过，不影响其他组件的初始化。
+
+| 字段 | 默认值 | 说明与校验 |
+| --- | --- | --- |
+| `enabled` | `true` | 是否启用 Activity 弱引用重检和 KOOM 联动 |
+| `foregroundScanIntervalMillis` | `60000` | 前台扫描周期，范围 `1ms..7 天` |
+| `backgroundScanIntervalMillis` | `1200000` | 后台扫描周期，范围 `1ms..7 天` |
+| `maxRecheckCount` | `10` | 单个 Activity 最大重检次数，范围 `1..100` |
+| `gcDelayMillis` | `2000` | Activity 销毁后到首次 GC/检查的延迟，范围 `1ms..5 分钟` |
+| `skipWhenDebuggerConnected` | `true` | 调试器连接时推迟到期候选，不执行 GC、重检或 dump |
+
+`gcDelayMillis` 不是“GC 后等待 2 秒”：它从 `onActivityDestroyed` 入队时开始计时，
+用于延迟首次扫描。扫描任务在 `activity-leak-watcher` 的 `HandlerThread` 执行 GC，随后
+等待约 100ms 再执行 finalization；这个短间隔是检测实现内部的 GC/finalization 顺序，
+不要与销毁后的 2 秒首次检查延迟混淆。
+
+泄漏候选只以 `WeakReference` 保存。候选在 GC 后仍存活时按前台/后台周期重检，达到
+`maxRecheckCount` 后触发 KOOM dump；调试器跳过时只推迟候选。关闭或初始化回滚会注销
+Activity 回调、清空候选、取消任务、停止并等待 watcher 的 `HandlerThread`，并停止本 SDK
+启动的 KOOM 循环。
+
+KOOM 的 `HeapAnalysisService` 在 `:heap_analysis` 独立进程运行。该进程进入宿主
+`Application.onCreate` 时，SDK 会先补齐 KOOM `CommonConfig`，但不会在分析进程注册监控配置、
+启动 OOM 循环或创建 Activity 检测器；这样分析服务初始化 `OOMFileManager` 时可以正常读取
+KOOM 的版本和文件配置。
+
 场景可以在页面运行期间覆盖：
 
 ```kotlin
@@ -239,10 +277,10 @@ PerformanceSdk.current()?.setFpsScene(this, null)
 
 SDK 初始化时会自动解析并复用以下信息：
 
-- Crash、Jank、FPS 和内存默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
+- Crash、Jank、FPS、内存和内存泄漏 report 默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
 - Crash 可覆盖其事件元数据，Jank 可单独覆盖 `buildId`；FPS 使用 Application 元数据和公共派生 `buildId`。
-- 匿名设备 ID 持久化保存，四个 Reporter 复用同一个 ID。
-- 四条链路共用网络客户端、超时参数和 App Key 认证信息；内存请求固定发送 `X-Schema-Version: 2`。
+- 匿名设备 ID 持久化保存，五个 Reporter 复用同一个 ID；仅启用 `memoryLeak` 时也会加载该 ID。
+- 五条链路共用网络客户端、超时参数和 App Key 认证信息；内存请求固定发送 `X-Schema-Version: 2`，内存泄漏 report 使用 multipart。
 - Jank 的 `mappingId` 不参与自动推导，默认保持为空。
 
 sessionId 尚未统一：Crash 和 FPS 各自生成，Jank 由事件构造方传入。公共元数据复用不代表
@@ -276,6 +314,7 @@ check(first === second)
 - `JANK`：Rhea 或 Jank Reporter 创建失败。
 - `FPS`：FPS 队列或 Activity 生命周期 reporter 创建失败。
 - `MEMORY`：内存队列或采样 reporter 创建失败。
+- `MEMORY_LEAK`：Activity 泄漏检测器或 KOOM 联动初始化失败。
 
 初始化失败会回滚已经启动的 Crash handler、Jank Reporter、Rhea 采集和调度器，不留下半初始化
 状态。空白 App Key 会立即抛出 `IllegalArgumentException`。
@@ -376,3 +415,17 @@ monitor.unregister(listener)
 实际改变配置会清空两类记录，从下一条完整消息生效。历史快照默认可附带执行中消息；
 近期清空前已开始的消息不计入新统计周期。状态、回调配对与反射降级详见
 [Looper 专题](../docs/knowledge-base/06-Looper消息监控与超时回溯.md)。
+## Activity 泄漏检测与 KOOM dump
+
+`MemoryLeakConfig` 的字段、默认值和校验见 3.6。实际调用链为：
+
+`PerformanceSdk.initialize` → `PerformanceComponentFactory` → `MemoryLeakReportReporter` /
+`OOMMonitorInitTask.init` / `ActivityLeakWatcher` → 泄漏确认回调 `OOMMonitorInitTask.dump()` →
+`OOMMonitor.dumpAndAnalysis()` → KOOM report 回调入队并上传。
+
+KOOM 的 `mHasDumped` 是进程级状态：第一次 `dumpAndAnalysis()` 设置后，同一进程的后续
+监控循环或手动触发都会被跳过，最多执行一次 HPROF dump/analysis 尝试。SDK 的 stop、close
+和初始化回滚不会重置该标记。当前工程只上传 `metadata` 和 report JSON，不上传或解析 HPROF。
+report 使用独立持久队列，服务端返回 `accepted`/`duplicate` 后删除队列项；队列默认 2 MiB
+report 上限、20 MiB 配额、7 天保留和 10 次重试。字段和错误语义以外部检出仓库
+`F:/IdeaProjects/apm-server/docs/api/memory-leak-reports-api.md` 为准。

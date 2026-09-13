@@ -11,6 +11,8 @@ import com.example.nativelib.jank.JankArtifactExportCallback
 import com.example.nativelib.jank.JankArtifactReporter
 import com.example.nativelib.fps.FpsReporter
 import com.example.nativelib.memory.MemoryReporter
+import com.example.nativelib.memory.leak.MemoryLeakWatcher
+import com.example.nativelib.memory.oom.OOMMonitorInitTask
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.Closeable
 import java.security.MessageDigest
@@ -26,6 +28,7 @@ enum class PerformanceInitializationStage {
     JANK,
     FPS,
     MEMORY,
+    MEMORY_LEAK,
 }
 
 /** SDK 初始化失败；异常消息只包含阶段和非敏感状态，不包含 App Key。 */
@@ -49,6 +52,8 @@ class PerformanceSdk private constructor(
     private val jankReporterReady: Boolean,
     private val fpsReporter: FpsReporter?,
     private val memoryReporter: MemoryReporter?,
+    private val memoryLeakWatcher: MemoryLeakWatcher?,
+    private val koomStartedBySdk: Boolean,
     private val traceStartedBySdk: Boolean,
     private val appKeyFingerprint: String,
     private val config: PerformanceConfig,
@@ -71,6 +76,10 @@ class PerformanceSdk private constructor(
     /** 主进程内存采集可用时为 true；关闭 SDK 后返回 false。 */
     val isMemoryAvailable: Boolean
         get() = memoryReporter?.isAvailable == true && !closed.get()
+
+    /** Activity 泄漏检测和 KOOM 联动可用时为 true；关闭 SDK 后返回 false。 */
+    val isMemoryLeakAvailable: Boolean
+        get() = memoryLeakWatcher?.isAvailable == true && !closed.get()
 
     /** 异步触发所有已启用事件队列刷新。 */
     fun flushAsync() {
@@ -128,20 +137,23 @@ class PerformanceSdk private constructor(
         // 与 initialize 共用同一把锁，避免关闭资源期间并发启动第二组 Reporter。
         synchronized(instance) {
             instance.compareAndSet(this, null)
+            runCatching { memoryLeakWatcher?.close() }
+                .onFailure { logCloseFailure("memory leak") }
+            if (koomStartedBySdk) {
+                runCatching { componentFactory.stopKoom() }
+                    .onFailure { logCloseFailure("koom") }
+            }
+            runCatching { memoryReporter?.close() }
+                .onFailure { logCloseFailure("memory") }
+            runCatching { fpsReporter?.close() }
+                .onFailure { logCloseFailure("fps") }
             runCatching {
                 if (jankReporterReady) {
                     componentFactory.closeJank()
                 }
             }.onFailure { logCloseFailure("jank") }
-            runCatching {
-                fpsReporter?.close()
-            }.onFailure { logCloseFailure("fps") }
-            runCatching {
-                memoryReporter?.close()
-            }.onFailure { logCloseFailure("memory") }
-            runCatching {
-                crashReporter?.close()
-            }.onFailure { logCloseFailure("crash") }
+            runCatching { crashReporter?.close() }
+                .onFailure { logCloseFailure("crash") }
             if (traceStartedBySdk) {
                 runCatching { componentFactory.stopRhea() }
                     .onFailure { logCloseFailure("rhea") }
@@ -183,6 +195,22 @@ class PerformanceSdk private constructor(
                 instance.get()?.let { existing ->
                     return existing.requireSameInitialization(normalizedAppKey, config)
                 }
+
+                // KOOM 的 HeapAnalysisService 运行在 :heap_analysis 独立进程。
+                // 该进程也会执行宿主 Application.onCreate，但不会创建主进程的
+                // ActivityLeakWatcher；先补齐 CommonConfig，避免分析服务初始化
+                // OOMFileManager 时访问未初始化的 MonitorManager.commonConfig。
+                if (OOMMonitorInitTask.isHeapAnalysisProcess(application)) {
+                    try {
+                        OOMMonitorInitTask.ensureCommonConfig(application)
+                    } catch (throwable: Throwable) {
+                        throw PerformanceInitializationException(
+                            PerformanceInitializationStage.MEMORY_LEAK,
+                            "unable to initialize KOOM analysis process",
+                            throwable,
+                        )
+                    }
+                }
                 val componentFactory = PerformanceComponentFactoryProvider.current
 
                 val serviceConfig = runCatching {
@@ -216,6 +244,9 @@ class PerformanceSdk private constructor(
                 var crashReporter: CrashReporter? = null
                 var fpsReporter: FpsReporter? = null
                 var memoryReporter: MemoryReporter? = null
+                var memoryLeakWatcher: MemoryLeakWatcher? = null
+                var koomStartedBySdk = false
+                var memoryLeakInitializationAttempted = false
                 var jankReporterReady = false
                 var traceStartedBySdk = false
                 var jankResult = RheaTrace3.InitResult.DISABLED
@@ -226,10 +257,18 @@ class PerformanceSdk private constructor(
                 val memoryProcessAvailable = runCatching {
                     MemoryReporter.isProcessAvailable(application)
                 }.getOrDefault(false)
+                val memoryLeakProcessAvailable = if (config.memoryLeak.enabled) {
+                    runCatching {
+                        componentFactory.isMemoryLeakAvailable(application)
+                    }.getOrDefault(false)
+                } else {
+                    false
+                }
                 try {
                     val anonymousDeviceId = if (
                         serviceConfig.crashEnabled || serviceConfig.jankEnabled ||
-                            serviceConfig.memoryEnabled
+                            serviceConfig.memoryEnabled ||
+                            (config.memoryLeak.enabled && memoryLeakProcessAvailable)
                     ) {
                         componentFactory.loadAnonymousDeviceId(application)
                     } else {
@@ -321,6 +360,23 @@ class PerformanceSdk private constructor(
                         )
                     }
 
+                    if (config.memoryLeak.enabled && memoryLeakProcessAvailable) {
+                        memoryLeakInitializationAttempted = true
+                        componentFactory.initializeKoom(
+                            application = application,
+                            serviceConfig = serviceConfig,
+                            metadata = metadata,
+                            buildId = buildId,
+                            anonymousDeviceId = anonymousDeviceId,
+                            networkFactory = networkFactory,
+                        )
+                        koomStartedBySdk = true
+                        memoryLeakWatcher = componentFactory.initializeMemoryLeak(
+                            application = application,
+                            memoryLeakConfig = config.memoryLeak,
+                        )
+                    }
+
                     val sdk = PerformanceSdk(
                         componentFactory = componentFactory,
                         crashReporter = crashReporter,
@@ -328,6 +384,8 @@ class PerformanceSdk private constructor(
                         jankReporterReady = jankReporterReady,
                         fpsReporter = fpsReporter,
                         memoryReporter = memoryReporter,
+                        memoryLeakWatcher = memoryLeakWatcher,
+                        koomStartedBySdk = koomStartedBySdk,
                         traceStartedBySdk = traceStartedBySdk,
                         appKeyFingerprint = fingerprint(normalizedAppKey),
                         config = config,
@@ -342,6 +400,8 @@ class PerformanceSdk private constructor(
                         jankReporterReady,
                         fpsReporter,
                         memoryReporter,
+                        memoryLeakWatcher,
+                        koomStartedBySdk,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -353,6 +413,8 @@ class PerformanceSdk private constructor(
                         jankReporterReady,
                         fpsReporter,
                         memoryReporter,
+                        memoryLeakWatcher,
+                        koomStartedBySdk,
                         traceStartedBySdk,
                         networkFactory,
                     )
@@ -366,6 +428,9 @@ class PerformanceSdk private constructor(
 
                             memoryReporter == null && serviceConfig.memoryEnabled && memoryProcessAvailable ->
                                 PerformanceInitializationStage.MEMORY
+
+                            memoryLeakInitializationAttempted ->
+                                PerformanceInitializationStage.MEMORY_LEAK
 
                             serviceConfig.jankEnabled -> PerformanceInitializationStage.JANK
                             else -> PerformanceInitializationStage.NETWORK
@@ -384,14 +449,20 @@ class PerformanceSdk private constructor(
             jankReporterReady: Boolean,
             fpsReporter: FpsReporter?,
             memoryReporter: MemoryReporter?,
+            memoryLeakWatcher: MemoryLeakWatcher?,
+            koomStartedBySdk: Boolean,
             traceStartedBySdk: Boolean,
             networkFactory: NetworkClientFactory,
         ) {
+            memoryLeakWatcher?.let { runCatching { it.close() } }
+            if (koomStartedBySdk) {
+                runCatching { componentFactory.stopKoom() }
+            }
+            memoryReporter?.let { runCatching { it.close() } }
+            fpsReporter?.let { runCatching { it.close() } }
             if (jankReporterReady) {
                 runCatching { componentFactory.closeJank() }
             }
-            fpsReporter?.let { runCatching { it.close() } }
-            memoryReporter?.let { runCatching { it.close() } }
             crashReporter?.let { runCatching { it.close() } }
             if (traceStartedBySdk) {
                 runCatching { componentFactory.stopRhea() }

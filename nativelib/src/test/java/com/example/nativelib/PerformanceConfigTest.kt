@@ -34,6 +34,26 @@ class PerformanceConfigTest {
             FpsConfig.DEFAULT_SNAPSHOT_INTERVAL_MILLIS,
             config.jank.fps.snapshotIntervalMillis,
         )
+        assertTrue(config.memoryLeak.enabled)
+        assertEquals(
+            MemoryLeakConfig.DEFAULT_FOREGROUND_SCAN_INTERVAL_MILLIS,
+            config.memoryLeak.foregroundScanIntervalMillis,
+        )
+        assertEquals(
+            MemoryLeakConfig.DEFAULT_BACKGROUND_SCAN_INTERVAL_MILLIS,
+            config.memoryLeak.backgroundScanIntervalMillis,
+        )
+        assertEquals(MemoryLeakConfig.DEFAULT_MAX_RECHECK_COUNT, config.memoryLeak.maxRecheckCount)
+        assertEquals(MemoryLeakConfig.DEFAULT_GC_DELAY_MILLIS, config.memoryLeak.gcDelayMillis)
+        assertTrue(config.memoryLeak.skipWhenDebuggerConnected)
+
+        // 指标采集和 Activity 泄漏检测是两个独立开关。
+        val independentConfig = PerformanceConfig(
+            memory = MemoryConfig(enabled = false),
+            memoryLeak = MemoryLeakConfig(enabled = true),
+        )
+        assertFalse(independentConfig.memory.enabled)
+        assertTrue(independentConfig.memoryLeak.enabled)
     }
 
     /** 验证自定义 Jank 参数仍能转换为 Rhea 配置。 */
@@ -97,6 +117,23 @@ class PerformanceConfigTest {
         }
         assertThrows(IllegalArgumentException::class.java) {
             JankConfig(fps = FpsConfig(maxBatchBytes = FpsConfig.MAX_BATCH_BYTES + 1))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MemoryLeakConfig(foregroundScanIntervalMillis = 0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MemoryLeakConfig(
+                backgroundScanIntervalMillis = MemoryLeakConfig.MAX_SCAN_INTERVAL_MILLIS + 1,
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MemoryLeakConfig(maxRecheckCount = MemoryLeakConfig.MAX_RECHECK_COUNT + 1)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MemoryLeakConfig(gcDelayMillis = 0)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            MemoryLeakConfig(gcDelayMillis = MemoryLeakConfig.MAX_GC_DELAY_MILLIS + 1)
         }
     }
 }

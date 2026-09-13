@@ -1,3 +1,13 @@
 <resources>
     <string name="app_name">Performance</string>
+    <string name="memory_leak_test_entry">内存泄漏测试</string>
+    <string name="memory_leak_test_title">Activity 内存泄漏测试</string>
+    <string name="memory_leak_test_description">此页面只用于测试：点击“制造泄漏并销毁”后，页面会把已销毁的 Activity 暂存到静态强引用中。当前示例使用快速烟测配置，约 1 秒后开始、每 5 秒扫描，存活 1 次即触发；正式默认配置最多约需 9 分钟完成重检。调试器连接时当前示例不会跳过检测。</string>
+    <string name="memory_leak_test_normal_destroy">正常销毁（不泄漏）</string>
+    <string name="memory_leak_test_leak_destroy">制造泄漏并销毁 Activity</string>
+    <string name="memory_leak_test_clear_reference">清理泄漏引用</string>
+    <string name="memory_leak_test_ready">请选择一种销毁方式</string>
+    <string name="memory_leak_test_normal_status">已选择正常销毁：Activity 不会被测试持有</string>
+    <string name="memory_leak_test_leak_status">已选择泄漏销毁：返回主页面后等待检测器重检</string>
+    <string name="memory_leak_test_cleared_status">已清理静态泄漏引用</string>
 </resources>

@@ -42,6 +42,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    packagingOptions {
+        // Rhea 初始化依赖 ShadowHook；多依赖重复时只保留一个实现，不能排除。
+        pickFirst("lib/*/libshadowhook.so")
+        pickFirst("lib/*/libshadowhook_nothing.so")
+        // apk打包时选择第一个libc++_shared.so，运行时可能遇到不可预知的bug，慎用！
+        pickFirst ("lib/*/libc++_shared.so")
+    }
     kotlinOptions {
         jvmTarget = "11"
     }

@@ -9,6 +9,7 @@ import android.os.Build
 import android.util.Log
 import com.example.nativelib.ApplicationMetadata
 import com.example.nativelib.config.NativeServiceConfig
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.MemoryLeakReportMetadata
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.Closeable
@@ -32,6 +33,8 @@ internal class MemoryLeakReportReporter private constructor(
     private val environment: String,
     private val channel: String,
     private val buildId: String,
+    /** 当前进程共享的运行身份。 */
+    private val runtimeIdentity: RuntimeIdentity,
     private val anonymousDeviceId: String,
     private val queue: MemoryLeakReportStore,
     private val uploader: MemoryLeakReportUploader,
@@ -39,7 +42,6 @@ internal class MemoryLeakReportReporter private constructor(
     private val clock: () -> Long,
 ) : Closeable {
     private val closed = AtomicBoolean(false)
-    private val sessionId = UUID.randomUUID().toString()
     private val processName = resolveProcessName(context)
     private val scheduleLock = Any()
     private var scheduledFlush: ScheduledFuture<*>? = null
@@ -69,7 +71,8 @@ internal class MemoryLeakReportReporter private constructor(
             versionCode = metadata.versionCode,
             anonymousDeviceId = anonymousDeviceId,
             processName = processName,
-            sessionId = sessionId,
+            sessionId = runtimeIdentity.sessionId,
+            processId = runtimeIdentity.processId,
             buildId = buildId,
             environment = environment,
             channel = channel,
@@ -175,6 +178,7 @@ internal class MemoryLeakReportReporter private constructor(
             serviceConfig: NativeServiceConfig,
             metadata: ApplicationMetadata,
             buildId: String,
+            runtimeIdentity: RuntimeIdentity,
             anonymousDeviceId: String,
             networkFactory: NetworkClientFactory,
         ): MemoryLeakReportReporter {
@@ -202,6 +206,7 @@ internal class MemoryLeakReportReporter private constructor(
                     environment = serviceConfig.environment,
                     channel = serviceConfig.channel,
                     buildId = buildId,
+                    runtimeIdentity = runtimeIdentity,
                     anonymousDeviceId = anonymousDeviceId,
                     queue = queue,
                     uploader = uploader,

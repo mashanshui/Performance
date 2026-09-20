@@ -2,7 +2,7 @@
 
 [返回导航](README.md)
 
-本文按当前源码说明 FPS 从 SDK 初始化、Window 帧回调到场景结算、快照、封存、上传的全过程。核对日期：2026-09-06。本次仅更新文档，未执行设备采集或服务端联调。
+本文按当前源码说明 FPS 从 SDK 初始化、Window 帧回调到场景结算、快照、封存、上传的全过程。核对日期：2026-09-16。本轮 JVM 测试已覆盖统一身份和 current 快照恢复，未执行设备采集或服务端联调。
 
 ## 1. 先明确“FPS 收集”包含哪些阶段
 
@@ -15,7 +15,7 @@ FPS 的逐帧收集由 **Window 的 FrameMetrics 回调驱动**，不是由每�
 | 采集 | 接收并过滤 FrameMetrics，将单帧计入内存 | FpsHelperV2 / FpsFrameAccumulator |
 | 结算与合并 | 结束一个场景/刷新率区间，把 summary 合并到当前会话 | FpsHelperV2.emitSummary → FpsReporter.onSummary → Store.merge |
 | 快照 | 把 Store 已合并的当前会话数据写入 current.json | FpsEventStore.snapshot |
-| 封存 | 将当前会话聚合转换为不可变的待上传事件 | sealCurrent / recoverPreviousSession |
+| 封存 | 将当前会话聚合转换为带稳定 `sessionId`/`processId` 的不可变待上传事件 | sealCurrent / recoverPreviousSession |
 | 上传 | 读取已封存事件，发送并按响应确认或重试 | FpsUploader / FpsNetworkClient |
 
 `FpsReporter` 由 `PerformanceSdk` 管理，自动接收 Activity 生命周期。业务可以通过 `setFpsScene(activity, scene)` 设置场景，不需要自己为每个 Activity 调用 Helper.start。
@@ -35,7 +35,7 @@ FPS 与 Jank 的关联在配置层：FPS 开关是 `jank.enabled && jank.fps.ena
 | 收到 FrameMetrics | onFrameMetricsAvailable → onFrameMetrics | 过滤回调，更新场景与日志两个内存累加器 | 通常不结算、不落盘、不发网络 |
 | 有效帧显示刷新率发生变化 | onFrameMetrics → switchRefreshRateLocked | 结束旧刷新率桶，创建新桶，当前帧进入新桶 | 旧桶结算到 Store 内存 |
 | 设置不同业务场景 | setFpsScene → helper.setScene | 结算旧场景，更新监听代次并注册新监听 | 旧桶结算到 Store 内存；相同场景名无操作 |
-| 采集启动后约每 1 秒 | logIntervalSummary | 输出并重置日志区间累加器 | 只记录日志；仅 SUMMARY/VERBOSE 启用 |
+| 采集启动后约每 1 秒 | logIntervalSummary | 有效帧时输出并重置日志区间；无有效帧时静默重置 | 只记录日志；仅 SUMMARY/VERBOSE 启用 |
 | Reporter 启动后默认每 5 秒 | scheduleTasks → store.snapshot | 写 Store 当前聚合快照 | 落盘 current.json，不封存 |
 | Reporter 启动立即、之后默认每 30 秒 | scheduleTasks → flushInBackground | 处理到期的已封存事件 | 可能上传，不结算 Helper，不封存当前会话 |
 | 默认网络变为可用 | NetworkCallback.onAvailable → flushAsync | 快照，再尝试刷新封存队列 | 不绕过 nextAttemptAtMillis |
@@ -44,7 +44,7 @@ FPS 与 Jank 的关联在配置层：FPS 开关是 `jank.enabled && jank.fps.ena
 | Activity stopped / 保存状态 | onActivityStopped / onActivitySaveInstanceState | 可选日志 | 不重复结算 |
 | Activity destroyed | onActivityDestroyed → helper.close | 兜底结算，关闭 HandlerThread，移除引用 | 已在 pause 结算的桶不会重复输出 |
 | sdk.close | FpsReporter.close | 关闭 Helper，取消调度，快照并封存当前会话 | 等待持久化完成；本次关闭不继续上传 |
-| 下次初始化 | store.startSession → recoverPreviousSession | 从上次 current.json 恢复并生成封存事件 | 复用 eventId，随后启动任务上传 |
+| 下次初始化 | store.startSession(RuntimeIdentity) → recoverPreviousSession | 从上次 current.json 恢复并生成封存事件 | 新事件使用当前进程身份；旧快照缺少 processId 时不补造，按原任务交给服务端校验 |
 
 1 秒日志使用 Handler.postDelayed；5 秒快照和 30 秒上传使用同一个单线程 scheduler 的 scheduleAtFixedRate。以上都是安排间隔，不是精确执行时间承诺。上传等待、磁盘工作或线程调度会影响实际触发时刻。
 
@@ -91,10 +91,11 @@ Application.onCreate
   → PerformanceSdk.initialize
   → 检查 serviceConfig.fpsEnabled && fpsProcessAvailable
   → DefaultPerformanceComponentFactory.initializeFps
+  → RuntimeIdentityProvider.current
   → FpsReporter.create
       → 创建 FpsEventStore、FpsUploader、fps-upload scheduler
       → FpsReporter.init
-          → store.startSession(UUID)
+          → store.startSession(RuntimeIdentity)
           → application.registerActivityLifecycleCallbacks(this)
           → registerNetworkRecovery()
           → scheduleTasks()

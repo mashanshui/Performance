@@ -63,13 +63,8 @@ I/FpsHelperV2: fps scope=interval scene=checkout refreshRateHz=60.00 uiRefreshFr
 I/FpsReporter: upload completed batches=1 acknowledged=1 retried=0 deadLettered=0
 ```
 
-没有有效刷新时输出：
-
-```text
-I/FpsHelperV2: interval scene=checkout 无有效刷新，FPS 不计算
-```
-
-不会把这类区间打印成伪造的 `0 FPS`，页面停止后也会取消摘要任务。
+没有有效刷新时仅重置当前日志区间，不输出区间日志，也不会把这类区间打印成伪造的
+`0 FPS`；页面停止后会取消摘要任务。
 
 ## 4. 事件可靠性
 

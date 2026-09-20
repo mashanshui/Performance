@@ -1,5 +1,6 @@
 package com.example.nativelib.fps
 
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.FpsBatchResponse
 import com.example.nativelib.network.FrameSceneSummaryPayload
 import com.example.nativelib.network.FpsMetricEvent
@@ -12,13 +13,19 @@ import org.junit.Test
 
 /** FPS 批次响应确认和不完整响应保留测试。 */
 class FpsUploaderTest {
+    /** 测试使用的稳定进程身份。 */
+    private val testIdentity = RuntimeIdentity(
+        sessionId = "11111111-1111-4111-8111-111111111111",
+        processId = "22222222-2222-4222-8222-222222222222",
+    )
+
     /** 验证 duplicate 与 accepted 一样可以删除本地事件。 */
     @Test
     fun duplicateResponseAcknowledgesEvent() = runBlocking {
         val root = Files.createTempDirectory("fps-uploader-test")
         try {
             val store = createStore(root)
-            store.startSession("session")
+            store.startSession(testIdentity)
             store.merge(summary())
             store.sealCurrent()
             val uploader = FpsUploader(
@@ -49,7 +56,7 @@ class FpsUploaderTest {
         val root = Files.createTempDirectory("fps-uploader-invalid-test")
         try {
             val store = createStore(root)
-            store.startSession("session")
+            store.startSession(testIdentity)
             store.merge(summary())
             store.sealCurrent()
             val uploader = FpsUploader(
@@ -80,6 +87,7 @@ class FpsUploaderTest {
                     eventType = "frame_scene_summary",
                     occurredAt = aggregate.occurredAtMillis,
                     sessionId = aggregate.sessionId,
+                    processId = aggregate.processId.orEmpty(),
                     anonymousDeviceId = "device",
                     packageName = "com.example.test",
                     appVersion = "1.0",

@@ -25,7 +25,10 @@ LooperMonitor.onMessageEnd
   → 后台 JankArtifactUploader.flush
 ~~~
 
-`messageStartNs/messageEndNs` 使用同一单调时钟，`occurredAt` 使用墙上时钟毫秒。示例的 `attemptedSampleCount=1` 和 `demo-session` 是演示值。消息结束时调用抓栈，不足以证明整个消息区间具有完整采样，更不能据此推导方法精确耗时。
+`messageStartNs/messageEndNs` 使用同一单调时钟，`occurredAt` 使用墙上时钟毫秒。示例的
+`attemptedSampleCount=1` 是演示值，`sessionId` 从当前 SDK 读取，不再使用固定演示值；SDK 初始化
+Rhea 时把同一进程级 UUID v4 `processId` 写入配置，Rhea extra、v3 manifest 和采样证据保持一致。
+消息结束时调用抓栈，不足以证明整个消息区间具有完整采样，更不能据此推导方法精确耗时。
 
 监听器由 MainActivity 持有，在 onDestroy 注销；若销毁时仍有计时会话则主动关闭，避免短消息和 Activity 重建留下会话。
 
@@ -61,7 +64,10 @@ flowchart LR
 
 每次 flush 最多处理 5 个产物，遇到重试即结束当前轮次。上传前检查文件名、存在性、非空和单文件上限。磁盘总额度、TTL 和原始文件清理由配置传给 Rhea，元数据队列不另存 ZIP。
 
-当前 Uploader 在 `success=true` 且 status 为 `accepted/duplicate` 时确认；网络层将有响应体的 2xx 转成 Success，Uploader 没有进一步限定 200。永久 HTTP 列表为 `400/401/413/415/422`，其他错误（包括 403）重试。这与服务端要求的差异见 [协议文档](09-服务端对接与数据协议.md)。
+当前 Uploader 在 `success=true` 且 status 为 `accepted/duplicate` 时确认；网络层只有 HTTP 200
+才进入 Success，201/204 等其他状态保留为 HTTP 错误。永久 HTTP 列表为
+`400/401/403/413/415/422`，其中 403 的包名或权限拒绝不会无限重试；503 等暂时错误保留原 ZIP
+和 eventId 退避重试。服务端契约见 [协议文档](09-服务端对接与数据协议.md)。
 
 确认和永久拒绝都会标记 deletePending，再通过 `RheaTrace3.deleteJankFile` 删除文件。因此“ZIP 消失”不总表示服务端接受。删除失败时保留状态，下一轮只删本地文件，不重新上传。
 
@@ -71,8 +77,11 @@ flowchart LR
 
 - [MainActivity](../../app/src/main/java/com/example/performance/MainActivity.kt)：消息边界、阈值与事件构造。
 - [JankTraceAdapter](../../nativelib/src/main/java/com/example/nativelib/jank/JankTraceAdapter.kt)：外部依赖边界。
+- [RuntimeIdentity](../../nativelib/src/main/java/com/example/nativelib/identity/RuntimeIdentity.kt)：进程级身份来源。
 - [JankArtifactReporter](../../nativelib/src/main/java/com/example/nativelib/jank/JankArtifactReporter.kt)：初始化、enqueueArtifact、调度。
 - [FileJankUploadQueue](../../nativelib/src/main/java/com/example/nativelib/jank/FileJankUploadQueue.kt)、[JankArtifactUploader](../../nativelib/src/main/java/com/example/nativelib/jank/JankArtifactUploader.kt)。
 - [队列测试](../../nativelib/src/test/java/com/example/nativelib/jank/FileJankUploadQueueTest.kt)、[上传器测试](../../nativelib/src/test/java/com/example/nativelib/jank/JankArtifactUploaderTest.kt)、[网络测试](../../nativelib/src/test/java/com/example/nativelib/network/NetworkClientTest.kt)：对账、恢复、确认/重试/永久失败、删除重试、原字节请求。
 
-上述测试通过替身隔离 Rhea；本轮没有验证实际 AAR 的 manifest 版本、ART 兼容性、采样覆盖和真实 ZIP 接收。
+上述客户端测试通过替身隔离 Rhea，另有外部 `rhea-inhouse-noop:test` 验证公开 `processId` API 和
+UUID v4 校验；本轮已在 EML-AL00/API 29 运行 Rhea 1.0.3 AndroidTest，生成并由 Processor 解析新 ZIP，
+同时核对了采样 extra、通用/Jank manifest 和同/异 `processId` 初始化；尚未完成服务端接收联调。

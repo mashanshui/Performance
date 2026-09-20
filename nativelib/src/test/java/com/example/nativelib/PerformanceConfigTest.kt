@@ -79,6 +79,7 @@ class PerformanceConfigTest {
         val actual = jank.toOnlineTraceConfig(
             buildId = "build-default",
             anonymousDeviceId = "device-1",
+            processId = "11111111-1111-4111-8111-111111111111",
             environment = "staging",
             channel = "beta",
         )
@@ -96,6 +97,7 @@ class PerformanceConfigTest {
         assertTrue(actual.isEnableStackCaptureStats)
         assertEquals("mapping-1", actual.mappingId)
         assertEquals("device-1", actual.anonymousDeviceId)
+        assertEquals("11111111-1111-4111-8111-111111111111", actual.processId)
         assertEquals("build-override", actual.buildId)
         assertEquals("staging", actual.environment)
         assertEquals("beta", actual.channel)

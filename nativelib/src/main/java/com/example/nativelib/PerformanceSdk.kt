@@ -14,6 +14,8 @@ import com.example.nativelib.memory.MemoryReporter
 import com.example.nativelib.memory.leak.MemoryLeakWatcher
 import com.example.nativelib.memory.oom.OOMMonitorInitTask
 import com.example.nativelib.network.NetworkClientFactory
+import com.example.nativelib.identity.RuntimeIdentity
+import com.example.nativelib.identity.RuntimeIdentityProvider
 import java.io.Closeable
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
@@ -49,6 +51,8 @@ class PerformanceSdk private constructor(
     private val componentFactory: PerformanceComponentFactory,
     private val crashReporter: CrashReporter?,
     private val networkFactory: NetworkClientFactory,
+    /** 当前进程共享的 sessionId/processId。 */
+    private val runtimeIdentity: RuntimeIdentity,
     private val jankReporterReady: Boolean,
     private val fpsReporter: FpsReporter?,
     private val memoryReporter: MemoryReporter?,
@@ -80,6 +84,14 @@ class PerformanceSdk private constructor(
     /** Activity 泄漏检测和 KOOM 联动可用时为 true；关闭 SDK 后返回 false。 */
     val isMemoryLeakAvailable: Boolean
         get() = memoryLeakWatcher?.isAvailable == true && !closed.get()
+
+    /** 当前进程本次应用启动实例的唯一标识，所有 Reporter 共用。 */
+    val sessionId: String
+        get() = runtimeIdentity.sessionId
+
+    /** 当前 Android 进程的唯一标识，所有上报载荷共用。 */
+    val processId: String
+        get() = runtimeIdentity.processId
 
     /** 异步触发所有已启用事件队列刷新。 */
     fun flushAsync() {
@@ -125,6 +137,9 @@ class PerformanceSdk private constructor(
     ): RheaTrace3.ExportRequestResult {
         if (!isJankAvailable) {
             return RheaTrace3.ExportRequestResult.NOT_INITIALIZED
+        }
+        if (event.sessionId != sessionId) {
+            return RheaTrace3.ExportRequestResult.INVALID_JANK_METADATA
         }
         return JankArtifactReporter.exportAndEnqueue(event, callback)
     }
@@ -212,6 +227,8 @@ class PerformanceSdk private constructor(
                     }
                 }
                 val componentFactory = PerformanceComponentFactoryProvider.current
+                // 当前进程的身份在初始化期间只创建一次，并传递给所有 Reporter。
+                val runtimeIdentity = RuntimeIdentityProvider.current(application)
 
                 val serviceConfig = runCatching {
                     config.toNativeServiceConfig(normalizedAppKey)
@@ -290,6 +307,7 @@ class PerformanceSdk private constructor(
                             config = crashConfig,
                             serviceConfig = serviceConfig,
                             networkFactory = networkFactory,
+                            runtimeIdentity = runtimeIdentity,
                             anonymousDeviceId = anonymousDeviceId,
                         )
                     }
@@ -298,6 +316,7 @@ class PerformanceSdk private constructor(
                         val onlineTraceConfig = config.jank.toOnlineTraceConfig(
                             buildId = buildId,
                             anonymousDeviceId = anonymousDeviceId,
+                            processId = runtimeIdentity.processId,
                             environment = serviceConfig.environment,
                             channel = serviceConfig.channel,
                         )
@@ -343,6 +362,7 @@ class PerformanceSdk private constructor(
                             fpsConfig = config.jank.fps,
                             metadata = metadata,
                             buildId = buildId,
+                            runtimeIdentity = runtimeIdentity,
                             anonymousDeviceId = anonymousDeviceId,
                             networkFactory = networkFactory,
                         )
@@ -355,6 +375,7 @@ class PerformanceSdk private constructor(
                             memoryConfig = config.memory,
                             metadata = metadata,
                             buildId = buildId,
+                            runtimeIdentity = runtimeIdentity,
                             anonymousDeviceId = anonymousDeviceId,
                             networkFactory = networkFactory,
                         )
@@ -367,6 +388,7 @@ class PerformanceSdk private constructor(
                             serviceConfig = serviceConfig,
                             metadata = metadata,
                             buildId = buildId,
+                            runtimeIdentity = runtimeIdentity,
                             anonymousDeviceId = anonymousDeviceId,
                             networkFactory = networkFactory,
                         )
@@ -381,6 +403,7 @@ class PerformanceSdk private constructor(
                         componentFactory = componentFactory,
                         crashReporter = crashReporter,
                         networkFactory = networkFactory,
+                        runtimeIdentity = runtimeIdentity,
                         jankReporterReady = jankReporterReady,
                         fpsReporter = fpsReporter,
                         memoryReporter = memoryReporter,

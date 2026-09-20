@@ -15,6 +15,7 @@ import com.example.nativelib.memory.leak.MemoryLeakWatcher
 import com.example.nativelib.memory.MemoryReporter
 import com.example.nativelib.memory.oom.OOMMonitorInitTask
 import com.example.nativelib.network.NetworkClientFactory
+import com.example.nativelib.identity.RuntimeIdentity
 
 /**
  * SDK 初始化所依赖的组件边界。
@@ -32,6 +33,7 @@ internal interface PerformanceComponentFactory {
         config: CrashReporterConfig,
         serviceConfig: NativeServiceConfig,
         networkFactory: NetworkClientFactory,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
     ): CrashReporter
 
@@ -49,6 +51,7 @@ internal interface PerformanceComponentFactory {
         fpsConfig: FpsConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): FpsReporter
@@ -60,6 +63,7 @@ internal interface PerformanceComponentFactory {
         memoryConfig: MemoryConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): MemoryReporter
@@ -73,6 +77,7 @@ internal interface PerformanceComponentFactory {
         serviceConfig: NativeServiceConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     )
@@ -106,6 +111,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
         config: CrashReporterConfig,
         serviceConfig: NativeServiceConfig,
         networkFactory: NetworkClientFactory,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
     ): CrashReporter {
         return CrashReporter.start(
@@ -113,6 +119,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             config = config,
             serviceConfig = serviceConfig,
             networkFactory = networkFactory,
+            runtimeIdentity = runtimeIdentity,
             anonymousDeviceId = anonymousDeviceId,
         )
     }
@@ -138,6 +145,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
         fpsConfig: FpsConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): FpsReporter {
@@ -147,6 +155,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             fpsConfig = fpsConfig,
             metadata = metadata,
             buildId = buildId,
+            runtimeIdentity = runtimeIdentity,
             anonymousDeviceId = anonymousDeviceId,
             networkFactory = networkFactory,
         )
@@ -158,6 +167,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
         memoryConfig: MemoryConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ): MemoryReporter {
@@ -167,6 +177,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             memoryConfig = memoryConfig,
             metadata = metadata,
             buildId = buildId,
+            runtimeIdentity = runtimeIdentity,
             anonymousDeviceId = anonymousDeviceId,
             networkFactory = networkFactory,
         )
@@ -181,6 +192,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
         serviceConfig: NativeServiceConfig,
         metadata: ApplicationMetadata,
         buildId: String,
+        runtimeIdentity: RuntimeIdentity,
         anonymousDeviceId: String,
         networkFactory: NetworkClientFactory,
     ) {
@@ -189,6 +201,7 @@ private object DefaultPerformanceComponentFactory : PerformanceComponentFactory 
             serviceConfig = serviceConfig,
             metadata = metadata,
             buildId = buildId,
+            runtimeIdentity = runtimeIdentity,
             anonymousDeviceId = anonymousDeviceId,
             networkFactory = networkFactory,
         )

@@ -17,6 +17,8 @@ internal class CrashEventFactory(
     private val config: CrashReporterConfig,
     private val serviceConfig: NativeServiceConfig,
     private val sessionId: String,
+    /** 当前 Android 进程的稳定身份。 */
+    private val processId: String,
     private val anonymousDeviceId: String,
     private val deviceInfo: CrashDeviceInfo,
     private val networkTypeProvider: () -> String?,
@@ -56,6 +58,7 @@ internal class CrashEventFactory(
             eventType = eventType,
             occurredAt = occurredAt,
             sessionId = sessionId.take(MAX_SESSION_ID_LENGTH),
+            processId = processId.take(MAX_PROCESS_ID_LENGTH),
             anonymousDeviceId = anonymousDeviceId.take(MAX_DEVICE_ID_LENGTH),
             packageName = config.packageName,
             appVersion = config.appVersion.take(MAX_TEXT_LENGTH),
@@ -74,6 +77,7 @@ internal class CrashEventFactory(
         const val EVENT_TYPE_APP_START = "app_start"
         const val MAX_EVENT_ID_LENGTH = 128
         const val MAX_SESSION_ID_LENGTH = 128
+        const val MAX_PROCESS_ID_LENGTH = 128
         const val MAX_DEVICE_ID_LENGTH = 256
         const val MAX_BUILD_ID_LENGTH = 256
         const val MAX_CHANNEL_LENGTH = 128

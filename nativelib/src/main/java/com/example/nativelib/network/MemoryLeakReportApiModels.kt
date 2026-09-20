@@ -15,6 +15,8 @@ internal data class MemoryLeakReportMetadata(
     val anonymousDeviceId: String,
     val processName: String,
     val sessionId: String,
+    /** 当前 Android 进程的稳定身份，服务端要求为 UUID v4。 */
+    val processId: String,
     val buildId: String,
     val environment: String,
     val channel: String,

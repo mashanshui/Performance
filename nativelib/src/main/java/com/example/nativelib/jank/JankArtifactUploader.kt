@@ -141,7 +141,7 @@ internal class JankArtifactUploader(
         } else {
             retry(item, null, "LOCAL_DELETE_FAILED")
         }
-//        // 临时测试：保留本地 ZIP，避免再次上传
+        // 临时测试：保留本地 ZIP，避免再次上传
 //        log(item.record.eventId, null, "LOCAL_DELETE_SKIPPED_TEST", "retained")
 //        return retry(item, null, "LOCAL_DELETE_SKIPPED_TEST")
     }
@@ -204,7 +204,8 @@ internal class JankArtifactUploader(
         const val MAX_RETRY_DELAY_MILLIS = 60L * 60L * 1000L
         const val MAX_BACKOFF_EXPONENT = 7
         val SUCCESS_STATUSES = setOf("accepted", "duplicate")
-        val PERMANENT_HTTP_STATUSES = setOf(400, 401, 413, 415, 422)
+        /** 身份、权限和载荷错误不应在本地队列中无限重试。 */
+        val PERMANENT_HTTP_STATUSES = setOf(400, 401, 403, 413, 415, 422)
         val ERROR_CODE_PATTERN = Regex("[A-Z][A-Z0-9_]{0,127}")
     }
 }

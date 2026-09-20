@@ -32,9 +32,26 @@ android {
         buildConfigField("String", "PERFORMANCE_APP_KEY", buildConfigString(performanceAppKey))
     }
 
+    signingConfigs {
+        // Release 构建使用 app 模块下的本地签名文件。
+        create("release") {
+            // 签名文件路径相对于 app 模块目录解析。
+            storeFile = file("sign")
+            // 签名文件密码。
+            storePassword = "123456"
+            // 签名条目别名。
+            keyAlias = "key0"
+            // 签名条目密码与签名文件密码一致。
+            keyPassword = "123456"
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 将 release 构建绑定到 app/sign 中的 key0 签名条目。
+            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }

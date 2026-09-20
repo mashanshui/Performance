@@ -1,7 +1,7 @@
 # nativelib 本地发布
 
 项目机制和源码调用链见[知识库导航](../docs/knowledge-base/README.md)，开发规范见
-[AGENTS.md](../AGENTS.md)。Crash 客户端已按服务端 schema v2/`packageName` 契约同步，
+[AGENTS.md](../AGENTS.md)。Crash 客户端已按服务端 schema v2/`packageName`/UUID v4 `processId` 契约同步，
 接入前请查阅[协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)；本文的发布和初始化
 示例不代表已完成修复后的真实服务端联调。
 
@@ -64,7 +64,10 @@ FPS 日志默认关闭。`SUMMARY` 输出页面生命周期、每秒统计摘要
 统计公式、刷新率切桶、持久化边界和典型日志见 [FPS 算法说明](FPS_ALGORITHM.md)。
 
 包名、版本名、versionCode、buildId 和匿名设备 ID 默认从当前 Application 自动解析或持久化，
-不需要应用层重复维护。设备不满足 Rhea 的线上采集条件时，`isJankAvailable` 为 `false`，
+不需要应用层重复维护。SDK 还会为当前 Android 进程生成只读 UUID v4 `sessionId`/`processId`：
+主进程的 `processId` 等于 `sessionId`，子进程独立生成；Crash、Jank、FPS、内存和泄漏 report
+metadata 共用这组身份，队列重试不重新生成。构造 JankEvent 时使用 `performance.sessionId`。
+设备不满足 Rhea 的线上采集条件时，`isJankAvailable` 为 `false`，
 Crash 仍会继续工作；配置错误或真正的初始化错误会抛出
 `PerformanceInitializationException`。
 

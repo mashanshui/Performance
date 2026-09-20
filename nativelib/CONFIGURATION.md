@@ -277,13 +277,17 @@ PerformanceSdk.current()?.setFpsScene(this, null)
 SDK 初始化时会自动解析并复用以下信息：
 
 - Crash、Jank、FPS、内存和内存泄漏 report 默认从同一 Application 获取元数据，复用公共派生 `buildId`、环境和渠道。
+- SDK 首次初始化时为当前 Android 进程生成规范小写 UUID v4 `sessionId`/`processId`：主进程的
+  `processId` 与 `sessionId` 相同，子进程独立生成；Crash、Jank、FPS、内存和泄漏 report metadata
+  复用这组身份，队列重试不重新生成。
 - Crash 可覆盖其事件元数据，Jank 可单独覆盖 `buildId`；FPS 使用 Application 元数据和公共派生 `buildId`。
 - 匿名设备 ID 持久化保存，五个 Reporter 复用同一个 ID；仅启用 `memoryLeak` 时也会加载该 ID。
 - 五条链路共用网络客户端、超时参数和 App Key 认证信息；内存请求固定发送 `X-Schema-Version: 2`，内存泄漏 report 使用 multipart。
 - Jank 的 `mappingId` 不参与自动推导，默认保持为空。
 
-sessionId 尚未统一：Crash 和 FPS 各自生成，Jank 由事件构造方传入。公共元数据复用不代表
-跨链路会话 ID 一致。事件字段差异以[服务端协议对照](../docs/knowledge-base/09-服务端对接与数据协议.md)为准。
+`PerformanceSdk.sessionId` 和 `PerformanceSdk.processId` 是只读属性，供示例或业务构造 JankEvent
+时复用。SDK 会拒绝 sessionId 与当前实例不一致的 JankEvent；事件字段差异以[服务端协议对照]
+(../docs/knowledge-base/09-服务端对接与数据协议.md)为准。
 
 ## 5. 初始化结果和异常
 

@@ -23,6 +23,7 @@ PerformanceSdk.initialize
   → ApplicationMetadataResolver.resolve
   → componentFactory.createNetwork
   → 读取/生成共享匿名设备 ID
+  → RuntimeIdentityProvider.current：生成本进程共享的 sessionId/processId
   → 按开关 startCrash
   → 按开关 initializeJank：Rhea → Jank Reporter
   → 按 FPS 开关与进程条件 initializeFps
@@ -35,7 +36,11 @@ PerformanceSdk.initialize
 
 匿名设备 ID 由 Crash 目录下的 `anonymous-device-id` 文件保存，即使仅启用 Jank 或 `memoryLeak` 也复用这一实现。应用元数据包含包名、版本名和 versionCode，默认 buildId 为 `versionName-versionCode`。Crash 配置可以覆盖其事件元数据，Jank 另有 buildId 覆盖；FPS 和内存泄漏 report 使用 Application 元数据和公共派生 buildId。
 
-各 Reporter 的会话标识并非由 SDK 统一分配：Crash、FPS 和内存 Reporter 各自生成 sessionId，JankEvent 的 sessionId 由事件构造方提供，示例使用固定演示值。Activity 泄漏检测不生成事件或 sessionId。
+SDK 在本进程第一次初始化时生成并缓存一个 `RuntimeIdentity`。主进程的 `processId` 与本次进程启动的
+`sessionId` 相同；子进程各自生成独立的 `sessionId`/`processId`。Crash、FPS、memory_sample、
+内存泄漏 report metadata 和 Rhea Jank ZIP 都复用当前进程的 `processId`，事件重试不重新生成；
+JankEvent 仍由调用方提供 `sessionId`，SDK 会拒绝与当前 SDK 会话不一致的事件。Activity 泄漏检测本身
+不单独生成事件，但其 report metadata 使用同一身份。
 
 ## Activity 泄漏检测与 KOOM 初始化
 
@@ -83,6 +88,8 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 | `pendingFpsEventCount()` | FPS 封存事件数，不包含 current.json 和 Helper 当前桶 |
 | `isMemoryAvailable` / `pendingMemoryEventCount()` | 内存 Reporter 是否可用、内存封存事件数 |
 | `isMemoryLeakAvailable` | Activity 泄漏检测器、KOOM 和 report 上传器是否已创建；当前没有 pending report 数量 API |
+| `sessionId` | 当前进程本次应用启动实例的只读 UUID v4；供 JankEvent 等调用方复用 |
+| `processId` | 当前 Android 进程的只读 UUID v4；主进程等于 `sessionId`，子进程独立 |
 | `setFpsScene(activity, scene)` | 设置场景，null 恢复 Activity 类名；非主线程调用会转发 |
 | `exportAndEnqueue(event, callback)` | 请求 Rhea 导出并入队；回调的 queued 不代表服务端确认 |
 | `close()` | 解绑、关闭、封存；之后可重新初始化 |
@@ -97,10 +104,11 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 
 - [PerformanceSdk.initialize/rollback/close](../../nativelib/src/main/java/com/example/nativelib/PerformanceSdk.kt)
 - [组件工厂](../../nativelib/src/main/java/com/example/nativelib/PerformanceComponentFactory.kt)
+- [RuntimeIdentity](../../nativelib/src/main/java/com/example/nativelib/identity/RuntimeIdentity.kt)
 - [ActivityLeakWatcher](../../nativelib/src/main/java/com/example/nativelib/memory/leak/ActivityLeakWatcher.kt)
 - [MemoryLeakReportReporter](../../nativelib/src/main/java/com/example/nativelib/memory/leak/MemoryLeakReportReporter.kt)
 - [OOMMonitorInitTask](../../nativelib/src/main/java/com/example/nativelib/memory/oom/OOMMonitorInitTask.kt)
 - [配置映射](../../nativelib/src/main/java/com/example/nativelib/config/NativeServiceConfig.kt)
-- [ApplicationMetadataTest](../../nativelib/src/test/java/com/example/nativelib/ApplicationMetadataTest.kt)、[PerformanceConfigTest](../../nativelib/src/test/java/com/example/nativelib/PerformanceConfigTest.kt)、[NativeServiceConfigTest](../../nativelib/src/test/java/com/example/nativelib/config/NativeServiceConfigTest.kt)
+- [ApplicationMetadataTest](../../nativelib/src/test/java/com/example/nativelib/ApplicationMetadataTest.kt)、[PerformanceConfigTest](../../nativelib/src/test/java/com/example/nativelib/PerformanceConfigTest.kt)、[NativeServiceConfigTest](../../nativelib/src/test/java/com/example/nativelib/config/NativeServiceConfigTest.kt)、[RuntimeIdentityTest](../../nativelib/src/test/java/com/example/nativelib/identity/RuntimeIdentityTest.kt)
 
 以上测试覆盖纯值和配置边界。本轮约定的 Wrapper 命令因 `E:\AndroidSDK\.gradle\wrapper\dists\gradle-8.13-bin\ap7pdhvhnjtc6mxtzz89gkh0c\gradle-8.13-bin.zip.lck` 拒绝访问而无法启动；使用同一 Gradle 8.13 发行版的直接 `gradle.bat` 执行 `:nativelib:testDebugUnitTest :nativelib:assembleDebug :app:assembleDebug --console plain` 已 `BUILD SUCCESSFUL`。`:nativelib:assembleDebugAndroidTest` 已通过，`:nativelib:connectedDebugAndroidTest` 在 Pixel 4 XL/Android 13 上 6/6 通过；2026-09-12 又在 Huawei EML-AL00/Android API 29 以示例快速配置验证了真实 KOOM dump、`:heap_analysis` 分析进程初始化、Activity 泄漏路径和 JSON 产物。默认 10 次重检、服务端联调和更广设备/API 兼容性仍未验证。

@@ -30,7 +30,9 @@ flowchart TD
 
 ## 事件与堆栈
 
-`CrashEventFactory` 为事件生成 eventId，复用 Reporter 的 sessionId 和匿名设备 ID。`ThrowableMapper` 沿 cause 链读取，使用对象身份防止循环，最多 16 层异常、总计 200 帧；无堆栈时构造合成帧。
+`CrashEventFactory` 为事件生成 eventId，复用 SDK 进程级 `sessionId`、`processId` 和匿名设备 ID。
+`processId` 是规范小写 UUID v4，进程内的启动事件、异常事件和重试保持不变。`ThrowableMapper` 沿
+cause 链读取，使用对象身份防止循环，最多 16 层异常、总计 200 帧；无堆栈时构造合成帧。
 
 消息经过 `CrashSanitizer` 处理和截断，applicationFrame 根据应用包名前缀判断。这里的脱敏是规则处理，不能解释为任意业务字符串都已不可识别。
 
@@ -54,9 +56,11 @@ HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退
 
 ## 当前边界与调试
 
-当前客户端协议已按所核对服务端契约对齐：默认 schema v2，事件发送 `packageName`，不再发送旧的 `appId`；服务端要求的 JVM Crash 字段和批次响应校验已同步到代码与测试，见 [协议说明](09-服务端对接与数据协议.md)。
+当前客户端协议已按所核对服务端契约对齐：默认 schema v2，事件发送 `packageName` 和 UUID v4
+`processId`，不再发送旧的 `appId`；服务端要求的 JVM Crash 字段和批次响应校验已同步到代码与测试，
+见 [协议说明](09-服务端对接与数据协议.md)。
 
-调试时先通过启动事件验证本地落盘和请求，再点击示例应用主页面的“崩溃上传测试”按钮抛出未捕获异常。不要把被 `runCatching` 吞掉的异常作为未处理崩溃测试。修复后应确认请求为 schema v2、事件含正确 `packageName` 且不含 `appId`，并观察服务端返回 HTTP 200 及 `accepted`/`duplicate`。按钮可见性由 `CrashPageInstrumentedTest` 覆盖，真实崩溃、进程重启和服务端接收仍需要独立设备烟测。
+调试时先通过启动事件验证本地落盘和请求，再点击示例应用主页面的“崩溃上传测试”按钮抛出未捕获异常。不要把被 `runCatching` 吞掉的异常作为未处理崩溃测试。修复后应确认请求为 schema v2、事件含正确 `packageName`、规范 UUID v4 `processId` 且不含 `appId`，并观察服务端返回 HTTP 200 及 `accepted`/`duplicate`。按钮可见性由 `CrashPageInstrumentedTest` 覆盖，真实崩溃、进程重启和服务端接收仍需要独立设备烟测。
 
 ## 源码与验证依据
 
@@ -65,5 +69,6 @@ HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退
 - [CrashEventFactoryTest](../../nativelib/src/test/java/com/example/nativelib/crash/CrashEventFactoryTest.kt)：脱敏、链长/帧数限制与启动元数据。
 - [FileCrashQueueTest](../../nativelib/src/test/java/com/example/nativelib/crash/FileCrashQueueTest.kt)：重试状态和 dead-letter。
 - [CrashUploaderTest](../../nativelib/src/test/java/com/example/nativelib/crash/CrashUploaderTest.kt)：部分成功、原 eventId 重试和异常定位。
+- [RuntimeIdentityTest](../../nativelib/src/test/java/com/example/nativelib/identity/RuntimeIdentityTest.kt)：主/子进程身份规则和 UUID v4 校验。
 
 2026-09-13 修复前在 Pixel 4 XL / Android 13（API 33）上安装 Debug APK，点击主页面“崩溃上传测试”按钮，确认 `AndroidRuntime` 收到 `IllegalStateException: Crash upload test triggered from MainActivity`，`CrashReporter` 发起请求并收到 HTTP 400，随后将包含该 Crash 事件的记录移入 `dead-letter`。该结果仅证明旧版按钮、未捕获异常、事件生成、持久化和上传尝试链路已执行；协议修复后的真实设备和服务端接收结果尚未重新验证。

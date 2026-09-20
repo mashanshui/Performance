@@ -79,8 +79,9 @@ KOOM 的 `mHasDumped` 保证同一进程最多执行一次 HPROF dump/analysis �
 ## Report 上传
 
 服务端接收接口为 `POST /ingest/v1/memory-reports`。每个任务包含两个 JSON multipart part：
-`metadata` 和 `report`，App Key 由公共网络拦截器写入 `X-App-Key`；请求中不包含 `hprof`。
-`eventId` 在首次入队时生成，网络重试沿用同一个 ID。HTTP 200 且响应状态为 `accepted` 或
+`metadata` 和 `report`，metadata 使用 SDK 进程级 `sessionId`/UUID v4 `processId`，App Key 由公共
+网络拦截器写入 `X-App-Key`；请求中不包含 `hprof`。
+`eventId` 在首次入队时生成，网络重试沿用同一个 ID 和身份字段。HTTP 200 且响应状态为 `accepted` 或
 `duplicate` 才确认删除队列项；网络异常、超时和 503 保留原内容重试，400、401、403、409、
 413、415 进入 dead-letter。
 

@@ -15,11 +15,11 @@ import com.example.nativelib.FpsConfig
 import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.config.NativeServiceConfig
 import com.example.nativelib.crash.AndroidNetworkTypeProvider
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.FpsMetricEvent
 import com.example.nativelib.network.FrameSceneSummaryPayload
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.File
-import java.util.UUID
 import java.util.WeakHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
@@ -39,6 +39,8 @@ internal class FpsReporter private constructor(
     private val fpsConfig: FpsConfig,
     private val metadata: ApplicationMetadata,
     private val buildId: String,
+    /** 当前进程共享的运行身份。 */
+    private val runtimeIdentity: RuntimeIdentity,
     private val anonymousDeviceId: String,
     private val networkFactory: NetworkClientFactory,
     private val scheduler: ScheduledExecutorService,
@@ -68,7 +70,7 @@ internal class FpsReporter private constructor(
     init {
         try {
             // 启动新会话前先恢复旧 current.json；事件 ID 在首次合并时生成并持续复用。
-            store.startSession(UUID.randomUUID().toString())
+            store.startSession(runtimeIdentity)
             application.registerActivityLifecycleCallbacks(this)
             registerNetworkRecovery()
             scheduleTasks()
@@ -395,6 +397,7 @@ internal class FpsReporter private constructor(
             fpsConfig: FpsConfig,
             metadata: ApplicationMetadata,
             buildId: String,
+            runtimeIdentity: RuntimeIdentity,
             anonymousDeviceId: String,
             networkFactory: NetworkClientFactory,
         ): FpsReporter {
@@ -418,6 +421,7 @@ internal class FpsReporter private constructor(
                     eventType = "frame_scene_summary",
                     occurredAt = aggregate.occurredAtMillis,
                     sessionId = aggregate.sessionId,
+                    processId = aggregate.processId.orEmpty(),
                     anonymousDeviceId = anonymousDeviceId,
                     packageName = metadata.packageName,
                     appVersion = metadata.versionName,
@@ -469,6 +473,7 @@ internal class FpsReporter private constructor(
                     fpsConfig = fpsConfig,
                     metadata = metadata,
                     buildId = buildId,
+                    runtimeIdentity = runtimeIdentity,
                     anonymousDeviceId = anonymousDeviceId,
                     networkFactory = networkFactory,
                     scheduler = scheduler,

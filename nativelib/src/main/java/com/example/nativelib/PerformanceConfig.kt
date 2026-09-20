@@ -151,7 +151,8 @@ data class ServiceConfig(
     }
 
     companion object {
-        const val DEFAULT_BASE_URL = "http://192.168.0.150:8080"
+//        const val DEFAULT_BASE_URL = "http://192.168.0.150:8080"
+        const val DEFAULT_BASE_URL = "http://124.221.252.121:80"
         const val DEFAULT_ENVIRONMENT = "debug"
         const val DEFAULT_CHANNEL = "official"
         const val DEFAULT_SCHEMA_VERSION = 2
@@ -246,6 +247,7 @@ data class JankConfig(
     internal fun toOnlineTraceConfig(
         buildId: String,
         anonymousDeviceId: String,
+        processId: String,
         environment: String,
         channel: String,
     ): RheaTrace3.OnlineTraceConfig {
@@ -264,6 +266,7 @@ data class JankConfig(
             .setEnableStackCaptureStats(enableStackCaptureStats)
             .setMappingId(mappingId)
             .setAnonymousDeviceId(anonymousDeviceId)
+            .setProcessId(processId)
             .setBuildId(this.buildId ?: buildId)
             .setEnvironment(environment)
             .setChannel(channel)

@@ -145,6 +145,7 @@ class CrashUploaderTest {
             eventType = "crash",
             occurredAt = 1_726_000_000_000,
             sessionId = "session-1",
+            processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "install-1",
             packageName = "com.example.performance",
             appVersion = "1.0",

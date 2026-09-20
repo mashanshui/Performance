@@ -87,17 +87,19 @@ class MainActivity : AppCompatActivity() {
                     Log.i("StackDiagnostics", line)
                 }
                 RheaTrace3.captureStackTrace(false)
+                // Jank 事件必须使用 SDK 当前进程共享的 sessionId，不能再使用演示占位值。
+                val sdk = PerformanceSdk.current() ?: return
                 val event = RheaTrace3.JankEvent.builder()
                     .setEventId("demo-jank-$endNs")
                     .setOccurredAt(System.currentTimeMillis())
-                    .setSessionId("demo-session")
+                    .setSessionId(sdk.sessionId)
                     .setScene("main_activity")
                     .setMessageStartNs(beginNs)
                     .setMessageEndNs(endNs)
                     .setThresholdNs(60_000_000L)
                     .setAttemptedSampleCount(1)
                     .build()
-                val exportRequest = PerformanceSdk.current()?.exportAndEnqueue(event) { uploadResult ->
+                val exportRequest = sdk.exportAndEnqueue(event) { uploadResult ->
                     Log.e(TAG, "onMessageEnd: "+uploadResult.exportResult.artifact.path)
                     if (uploadResult.exportResult.isSuccess) {
                         Log.i(
@@ -113,7 +115,7 @@ class MainActivity : AppCompatActivity() {
                                 "status=${uploadResult.exportResult.status.name}",
                         )
                     }
-                } ?: RheaTrace3.ExportRequestResult.NOT_INITIALIZED
+                }
                 Log.i(
                     TAG,
                     "jank export request submitted: eventId=${event.eventId} " +

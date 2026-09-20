@@ -14,7 +14,7 @@ class JankArtifactNetworkClient internal constructor(
     suspend fun upload(artifact: File): NetworkResult<JankArtifactUploadResponse> {
         return try {
             val response = api.ingest(artifact.asRequestBody(JANK_ARTIFACT_MEDIA_TYPE))
-            if (response.isSuccessful) {
+            if (response.code() == HTTP_OK) {
                 val body = response.body()
                 if (body == null) {
                     NetworkResult.SerializationError(
@@ -48,6 +48,8 @@ class JankArtifactNetworkClient internal constructor(
     }
 
     private companion object {
+        /** 服务端对 Jank 原始 ZIP 的唯一成功状态。 */
+        const val HTTP_OK = 200
         const val MAX_ERROR_BODY_LENGTH = 8 * 1024
         const val RETRY_AFTER_HEADER = "Retry-After"
         val JANK_ARTIFACT_MEDIA_TYPE =

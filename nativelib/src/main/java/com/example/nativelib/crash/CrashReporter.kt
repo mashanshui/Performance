@@ -6,10 +6,10 @@ import android.net.Network
 import android.os.Build
 import android.util.Log
 import com.example.nativelib.config.NativeServiceConfig
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.NetworkClientFactory
 import java.io.Closeable
 import java.io.File
-import java.util.UUID
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
@@ -170,6 +170,7 @@ internal class CrashReporter private constructor(
             config: CrashReporterConfig,
             serviceConfig: NativeServiceConfig,
             networkFactory: NetworkClientFactory,
+            runtimeIdentity: RuntimeIdentity,
             anonymousDeviceId: String,
         ): CrashReporter {
             val applicationContext = context.applicationContext
@@ -178,7 +179,8 @@ internal class CrashReporter private constructor(
             val eventFactory = CrashEventFactory(
                 config = config,
                 serviceConfig = serviceConfig,
-                sessionId = UUID.randomUUID().toString(),
+                sessionId = runtimeIdentity.sessionId,
+                processId = runtimeIdentity.processId,
                 anonymousDeviceId = anonymousDeviceId,
                 deviceInfo = CrashDeviceInfo(
                     osVersion = Build.VERSION.RELEASE.orEmpty().ifBlank { "unknown" },

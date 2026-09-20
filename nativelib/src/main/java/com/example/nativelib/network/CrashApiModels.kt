@@ -11,6 +11,8 @@ data class CrashEvent(
     val eventType: String,
     val occurredAt: Long,
     val sessionId: String,
+    /** 当前 Android 进程的稳定身份，服务端要求为 UUID v4。 */
+    val processId: String,
     val anonymousDeviceId: String,
     val packageName: String,
     val appVersion: String,

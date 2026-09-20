@@ -141,6 +141,7 @@ class MemoryLeakReportUploaderTest {
             anonymousDeviceId = "device-hash",
             processName = "com.example.memoryleak",
             sessionId = "session-1",
+            processId = "11111111-1111-4111-8111-111111111111",
             buildId = "build-1",
             environment = "debug",
             channel = "official",

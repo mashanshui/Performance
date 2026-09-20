@@ -78,6 +78,25 @@ class JankArtifactUploaderTest {
         assertFalse(fixture.artifact.exists())
     }
 
+    /** 验证服务端权限拒绝不会在本地队列中无限重试。 */
+    @Test
+    fun forbiddenHttpFailureDeletesArtifactWithoutRetry() = runBlocking {
+        val fixture = fixture("event-forbidden") {
+            NetworkResult.HttpError(
+                statusCode = 403,
+                responseBody = "{\"code\":\"APP_KEY_FORBIDDEN\"}",
+                retryable = false,
+            )
+        }
+
+        val report = fixture.uploader.flush(maxArtifacts = 1)
+
+        assertEquals(1, report.permanentlyRejected)
+        assertEquals(1, report.deleted)
+        assertEquals(0, fixture.queue.count())
+        assertFalse(fixture.artifact.exists())
+    }
+
     @Test
     fun malformedSuccessResponseIsRetried() = runBlocking {
         val fixture = fixture("event-ambiguous") {

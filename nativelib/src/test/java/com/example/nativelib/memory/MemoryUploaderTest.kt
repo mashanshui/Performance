@@ -264,6 +264,7 @@ class MemoryUploaderTest {
             eventType = "memory_sample",
             occurredAt = 1_000L,
             sessionId = "session",
+            processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "device",
             packageName = "com.example.test",
             appVersion = "1.0",

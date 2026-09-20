@@ -14,6 +14,7 @@ class CrashEventFactoryTest {
             config = testConfig(),
             serviceConfig = testServiceConfig(),
             sessionId = "session-1",
+            processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "install-1",
             deviceInfo = CrashDeviceInfo("35", "Pixel Test"),
             networkTypeProvider = { "wifi" },
@@ -58,6 +59,7 @@ class CrashEventFactoryTest {
             config = testConfig(),
             serviceConfig = testServiceConfig(),
             sessionId = "session-1",
+            processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "install-1",
             deviceInfo = CrashDeviceInfo("35", "Pixel Test"),
             networkTypeProvider = { null },
@@ -69,6 +71,7 @@ class CrashEventFactoryTest {
 
         assertEquals("app_start", event.eventType)
         assertEquals("session-1", event.sessionId)
+        assertEquals("11111111-1111-4111-8111-111111111111", event.processId)
         assertEquals("install-1", event.anonymousDeviceId)
         assertEquals(123L, event.occurredAt)
         assertTrue(event.crash == null)

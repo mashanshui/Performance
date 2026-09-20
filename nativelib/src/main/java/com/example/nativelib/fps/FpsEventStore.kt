@@ -1,6 +1,7 @@
 package com.example.nativelib.fps
 
 import com.example.nativelib.crash.AtomicFileWriter
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.FpsMetricEvent
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
@@ -14,6 +15,8 @@ import kotlin.math.max
 internal data class FpsAggregateRecord(
     val eventId: String,
     val sessionId: String,
+    /** 旧 current.json 可能没有此字段，因此恢复阶段允许为空并交给服务端拒绝。 */
+    val processId: String?,
     val scene: String,
     val algorithmVersion: String,
     val refreshRateHz: Double,
@@ -66,7 +69,11 @@ internal class FpsEventStore(
     private val deadLetterDirectory = File(root, DEAD_LETTER_DIRECTORY_NAME)
     private val currentFile = File(root, CURRENT_FILE_NAME)
     private val records = LinkedHashMap<String, FpsAggregateRecord>()
+    /** 当前会话 ID，只有 startSession 后才允许合并帧统计。 */
     private var sessionId: String = ""
+
+    /** 当前进程 ID，和当前会话一起写入每个新的聚合桶。 */
+    private var processId: String = ""
     private val operationCount = AtomicLong(0L)
 
     init {
@@ -81,12 +88,15 @@ internal class FpsEventStore(
 
     /**
      * 启动一个新会话，并把上次未封存的 current.json 原子转成不可变事件。
+     * 新会话使用调用方传入的进程级身份，避免各 Reporter 分别生成 processId。
      */
     @Synchronized
-    fun startSession(newSessionId: String) {
-        require(newSessionId.isNotBlank()) { "FPS sessionId must not be blank" }
+    fun startSession(identity: RuntimeIdentity) {
+        require(identity.sessionId.isNotBlank()) { "FPS sessionId must not be blank" }
+        require(identity.processId.isNotBlank()) { "FPS processId must not be blank" }
         recoverPreviousSession()
-        sessionId = newSessionId
+        sessionId = identity.sessionId
+        processId = identity.processId
         records.clear()
         persistCurrentLocked()
         logger { "fps store session started; previous current session sealed" }
@@ -102,6 +112,7 @@ internal class FpsEventStore(
             FpsAggregateRecord(
                 eventId = idGenerator(),
                 sessionId = sessionId,
+                processId = processId,
                 scene = summary.scene,
                 algorithmVersion = summary.algorithmVersion,
                 refreshRateHz = normalizedRefreshRateValue(summary.refreshRateHz),

@@ -1,5 +1,6 @@
 package com.example.nativelib.fps
 
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.FrameSceneSummaryPayload
 import com.example.nativelib.network.FpsMetricEvent
 import java.nio.file.Files
@@ -10,13 +11,19 @@ import org.junit.Test
 
 /** FPS 当前快照、会话恢复和事件封存测试。 */
 class FpsEventStoreTest {
+    /** 测试使用的稳定进程身份。 */
+    private val testIdentity = RuntimeIdentity(
+        sessionId = "11111111-1111-4111-8111-111111111111",
+        processId = "22222222-2222-4222-8222-222222222222",
+    )
+
     /** 验证同场景同刷新率区间只生成一个可重试事件。 */
     @Test
     fun mergesSameSceneAndRefreshRateBeforeSealing() {
         val root = Files.createTempDirectory("fps-store-test")
         try {
             val store = createStore(root)
-            store.startSession("session-1")
+            store.startSession(testIdentity)
             store.merge(summary("home", 60.0, 1_000L))
             store.merge(summary("home", 60.0, 2_000L))
 
@@ -36,17 +43,63 @@ class FpsEventStoreTest {
         val root = Files.createTempDirectory("fps-recover-test")
         try {
             val first = createStore(root)
-            first.startSession("session-old")
+            first.startSession(testIdentity)
             first.merge(summary("detail", 90.0, 1_000L))
             first.snapshot()
 
             val second = createStore(root)
-            second.startSession("session-new")
+            second.startSession(
+                RuntimeIdentity(
+                    sessionId = "33333333-3333-4333-8333-333333333333",
+                    processId = "44444444-4444-4444-8444-444444444444",
+                ),
+            )
 
             val pending = second.peekBatch(10)
             assertEquals(1, pending.size)
-            assertEquals("session-old", pending.single().record.event.sessionId)
+            assertEquals(testIdentity.sessionId, pending.single().record.event.sessionId)
+            assertEquals(testIdentity.processId, pending.single().record.event.processId)
             assertTrue(pending.single().record.event.frameSceneSummary.normalizedFps60 > 0.0)
+        } finally {
+            deleteRecursively(root)
+        }
+    }
+
+    /** 验证旧 current.json 缺少 processId 时不伪造身份并继续恢复原任务。 */
+    @Test
+    fun recoversLegacyCurrentWithoutProcessId() {
+        // 测试存储使用的临时目录。
+        val root = Files.createTempDirectory("fps-legacy-recover-test")
+        try {
+            // 先写入带 processId 的新版本快照。
+            val first = createStore(root)
+            first.startSession(testIdentity)
+            first.merge(summary("legacy", 60.0, 1_000L))
+            first.snapshot()
+
+            // 删除新增字段，模拟升级前已经写入磁盘的旧快照。
+            // 旧 current.json 文件。
+            val currentFile = root.resolve("current.json").toFile()
+            // 移除 processId 字段后的旧格式 JSON。
+            val legacyJson = currentFile.readText().replace(
+                "\"processId\":\"${testIdentity.processId}\",",
+                "",
+            )
+            currentFile.writeText(legacyJson)
+
+            // 以新的进程身份恢复旧快照，确认不会覆盖旧任务身份。
+            val second = createStore(root)
+            second.startSession(
+                RuntimeIdentity(
+                    sessionId = "33333333-3333-4333-8333-333333333333",
+                    processId = "44444444-4444-4444-8444-444444444444",
+                ),
+            )
+
+            // 从恢复队列中读取的旧事件。
+            val recovered = second.peekBatch(10).single().record.event
+            assertEquals(testIdentity.sessionId, recovered.sessionId)
+            assertEquals("", recovered.processId)
         } finally {
             deleteRecursively(root)
         }
@@ -65,6 +118,7 @@ class FpsEventStoreTest {
                     eventType = "frame_scene_summary",
                     occurredAt = aggregate.occurredAtMillis,
                     sessionId = aggregate.sessionId,
+                    processId = aggregate.processId.orEmpty(),
                     anonymousDeviceId = "device",
                     packageName = "com.example.test",
                     appVersion = "1.0",

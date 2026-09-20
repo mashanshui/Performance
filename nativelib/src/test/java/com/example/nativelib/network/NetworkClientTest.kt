@@ -73,6 +73,10 @@ class NetworkClientTest {
         assertEquals("request-1", body.get("requestId").asString)
         val event = body.getAsJsonArray("events")[0].asJsonObject
         assertEquals("crash-1", event.get("eventId").asString)
+        assertEquals(
+            "11111111-1111-4111-8111-111111111111",
+            event.get("processId").asString,
+        )
         assertEquals("com.example.performance", event.get("packageName").asString)
         assertFalse(event.has("appId"))
         assertEquals(
@@ -242,6 +246,49 @@ class NetworkClientTest {
         assertTrue(result is NetworkResult.SerializationError)
     }
 
+    /** 验证 Jank 原始 ZIP 只有 HTTP 200 才进入成功分支。 */
+    @Test
+    fun uploadJankArtifactTreatsNon200AsHttpError() {
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(201)
+                .setHeader("Content-Type", "application/json")
+                .setBody("{\"success\":true,\"status\":\"accepted\"}"),
+        )
+        val artifact = File(temporaryFolder.root, "event-created.rheajank.zip")
+        artifact.writeBytes(byteArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val client = NetworkClientFactory.create(
+            NetworkConfig(
+                baseUrl = server.url("/").toString(),
+                appKey = "secret-app-key",
+            ),
+        ).jankArtifactNetworkClient
+
+        val result = runBlocking { client.upload(artifact) }
+
+        assertTrue(result is NetworkResult.HttpError)
+        assertEquals(201, (result as NetworkResult.HttpError).statusCode)
+    }
+
+    /** 验证 Jank 的 HTTP 204 空响应不会被误认为上传成功。 */
+    @Test
+    fun uploadJankArtifactTreatsNoContentAsHttpError() {
+        server.enqueue(MockResponse().setResponseCode(204))
+        val artifact = File(temporaryFolder.root, "event-no-content.rheajank.zip")
+        artifact.writeBytes(byteArrayOf(0x50, 0x4b, 0x03, 0x04))
+        val client = NetworkClientFactory.create(
+            NetworkConfig(
+                baseUrl = server.url("/").toString(),
+                appKey = "secret-app-key",
+            ),
+        ).jankArtifactNetworkClient
+
+        val result = runBlocking { client.upload(artifact) }
+
+        assertTrue(result is NetworkResult.HttpError)
+        assertEquals(204, (result as NetworkResult.HttpError).statusCode)
+    }
+
     @Test
     fun loggingDoesNotExposeAppKeyOrRequestBody() {
         server.enqueue(
@@ -305,6 +352,7 @@ class NetworkClientTest {
                     eventType = "crash",
                     occurredAt = 1_726_000_000_000,
                     sessionId = "session-1",
+                    processId = "11111111-1111-4111-8111-111111111111",
                     anonymousDeviceId = "device-1",
                     packageName = "com.example.performance",
                     appVersion = "1.0",

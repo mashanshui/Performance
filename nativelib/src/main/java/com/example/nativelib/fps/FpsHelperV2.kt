@@ -483,18 +483,15 @@ class FpsHelperV2(
     /** 每秒输出一次当前日志区间摘要，并安排下一次摘要。 */
     private fun logIntervalSummary(callbackGeneration: Long) {
         var interval: FpsWindowSummary? = null
-        var currentScene = DEFAULT_SCENE
         synchronized(lock) {
             if (!running || callbackGeneration != generation) {
                 return
             }
             interval = intervalAccumulator?.snapshotAndReset()
-            currentScene = scene
             scheduleSummaryLogLocked(callbackGeneration)
         }
         val value = interval
         if (value == null) {
-            logSummary { "interval scene=$currentScene 无有效刷新，FPS 不计算" }
             return
         }
         logSummary { formatSummary("interval", value) }

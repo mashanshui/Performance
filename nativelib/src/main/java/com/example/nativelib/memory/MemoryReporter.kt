@@ -12,6 +12,7 @@ import com.example.nativelib.ApplicationMetadata
 import com.example.nativelib.MemoryConfig
 import com.example.nativelib.config.NativeServiceConfig
 import com.example.nativelib.crash.AndroidNetworkTypeProvider
+import com.example.nativelib.identity.RuntimeIdentity
 import com.example.nativelib.network.MemoryMetricEvent
 import com.example.nativelib.network.NetworkClientFactory
 import com.example.nativelib.network.asMemoryBatchSender
@@ -40,6 +41,8 @@ internal class MemoryReporter private constructor(
     private val memoryConfig: MemoryConfig,
     private val metadata: ApplicationMetadata,
     private val buildId: String,
+    /** 当前进程共享的运行身份。 */
+    private val runtimeIdentity: RuntimeIdentity,
     private val anonymousDeviceId: String,
     private val queue: MemoryEventStore,
     private val uploader: MemoryUploader,
@@ -48,7 +51,6 @@ internal class MemoryReporter private constructor(
     private val uploadScheduler: ScheduledExecutorService,
     private val clock: () -> Long,
 ) : Application.ActivityLifecycleCallbacks, Closeable {
-    private val sessionId = UUID.randomUUID().toString()
     private val closed = AtomicBoolean(false)
     private val startedActivityCount = AtomicInteger(0)
     private val foreground = AtomicBoolean(isProcessForeground())
@@ -178,7 +180,8 @@ internal class MemoryReporter private constructor(
             eventId = UUID.randomUUID().toString(),
             eventType = EVENT_TYPE,
             occurredAt = clock(),
-            sessionId = sessionId,
+            sessionId = runtimeIdentity.sessionId,
+            processId = runtimeIdentity.processId,
             anonymousDeviceId = anonymousDeviceId.take(MAX_DEVICE_ID_LENGTH),
             packageName = metadata.packageName,
             appVersion = metadata.versionName,
@@ -263,6 +266,7 @@ internal class MemoryReporter private constructor(
             memoryConfig: MemoryConfig,
             metadata: ApplicationMetadata,
             buildId: String,
+            runtimeIdentity: RuntimeIdentity,
             anonymousDeviceId: String,
             networkFactory: NetworkClientFactory,
         ): MemoryReporter {
@@ -294,6 +298,7 @@ internal class MemoryReporter private constructor(
                     memoryConfig = memoryConfig,
                     metadata = metadata,
                     buildId = buildId,
+                    runtimeIdentity = runtimeIdentity,
                     anonymousDeviceId = anonymousDeviceId,
                     queue = queue,
                     uploader = uploader,

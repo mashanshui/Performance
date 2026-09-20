@@ -9,6 +9,7 @@ import com.example.nativelib.JankConfig
 import com.example.nativelib.MemoryLeakConfig
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.PerformanceSdk
+import com.example.nativelib.ServiceConfig
 import com.example.nativelib.thread.ThreadUtils
 
 /**
@@ -27,6 +28,7 @@ class App : Application() {
                 application = this,
                 appKey = "apm_ak_UowWFkzFaZcYmP64C761KRR41ySgjuZ6FL9-P5bJ6x8",
                 config = PerformanceConfig(
+                    service = ServiceConfig(enableNetworkLogging = true),
                     jank = JankConfig(
                         fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
                         enableStackCaptureStats = true,

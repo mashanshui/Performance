@@ -2,10 +2,11 @@ package com.example.performance
 
 import android.app.Application
 import android.util.Log
-import com.example.nativelib.LooperMonitor
+import com.example.nativelib.CrashConfig
 import com.example.nativelib.FpsConfig
 import com.example.nativelib.FpsLogLevel
 import com.example.nativelib.JankConfig
+import com.example.nativelib.LooperMonitor
 import com.example.nativelib.MemoryLeakConfig
 import com.example.nativelib.PerformanceConfig
 import com.example.nativelib.PerformanceSdk
@@ -29,6 +30,10 @@ class App : Application() {
                 appKey = "apm_ak_UowWFkzFaZcYmP64C761KRR41ySgjuZ6FL9-P5bJ6x8",
                 config = PerformanceConfig(
                     service = ServiceConfig(enableNetworkLogging = true),
+                    // 使用 app 模块在本次 Gradle 命令中生成的 buildId。
+                    crash = CrashConfig(
+                        buildId = BuildConfig.PERFORMANCE_BUILD_ID,
+                    ),
                     jank = JankConfig(
                         fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
                         enableStackCaptureStats = true,

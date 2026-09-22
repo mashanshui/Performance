@@ -85,6 +85,17 @@ SDK 队列和网络日志不保存 App Key 明文，认证时通过运行期请�
 当前差异见[配置指南](CONFIGURATION.md)与[示例调试](../docs/knowledge-base/10-示例应用与调试路径.md)。
 直接把 App Key 写入 APK 仍不能阻止逆向提取，生产环境应按服务端密钥策略管理。
 
+## Release 混淆
+
+`nativelib` 的 Release AAR 保持未混淆，由消费者应用的 R8 在最终 APK/AAB 构建阶段统一处理。
+AAR 通过 `consumer-rules.pro` 传递 JNI 名称、Gson 网络字段和持久化队列记录字段所需的精确保留规则，
+并保留泛型、注解及源码行号属性；不会对整个 SDK 或第三方库添加宽泛规则。启用 R8 的消费者无需
+复制规则文件，但应确认 AAR 内的 `proguard.txt` 已随发布产物提供。
+
+应用的 Release 映射文件位于 `app/build/outputs/mapping/release/mapping.txt`。发布时必须把 mapping
+与对应 APK 一并留存；每次重新构建都会生成新的映射，不能用其他版本的 mapping 还原线上堆栈。
+Release 配置与设备烟测方式见[构建测试与本地发布](../docs/knowledge-base/11-构建测试与本地发布.md)。
+
 ## 发布到 Maven Local
 
 在项目根目录执行：

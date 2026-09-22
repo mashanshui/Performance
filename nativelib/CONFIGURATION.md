@@ -138,6 +138,12 @@ val config = PerformanceConfig(
 )
 ```
 
+示例应用的 `app` 模块会在 Gradle 配置阶段为当前构建命令生成一次
+`BuildConfig.PERFORMANCE_BUILD_ID`，格式为
+`versionName-versionCode-UTC时间戳-8位随机十六进制`。`App.onCreate` 将该值传给
+`CrashConfig.buildId`；SDK 会把它作为 Crash、Jank、FPS、内存和内存泄漏 report 的公共
+buildId。同一次 Gradle 命令生成的多个构建变体共用该值，重新执行构建命令会生成新的值。
+
 ### 3.3 `JankConfig`
 
 | 字段 | 默认值 | 说明 |

@@ -19,3 +19,10 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Release 仪器 runner 启动时调用此 AndroidX Tracing API；保留该精确类供测试进程解析。
+-keep class androidx.tracing.Trace { *; }
+
+# Release 仪器 runner 初始化测试目录时通过 Kotlin lazy 属性访问测试存储。
+-keep class kotlin.LazyKt { *; }
+-keep interface kotlin.Lazy { *; }

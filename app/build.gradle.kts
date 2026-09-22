@@ -1,11 +1,41 @@
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
 }
 
+/** 在当前 Gradle 配置阶段生成本次命令共用的编译期 buildId。 */
+fun generatePerformanceBuildId(versionName: String, versionCode: Int): String {
+    /** 使用 UTC 毫秒时间戳，避免不同构建机器的本地时区影响格式。 */
+    val timestamp = ZonedDateTime.now(ZoneOffset.UTC)
+        .format(DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS"))
+    /** 使用 UUID 的前八位作为随机后缀，降低同一毫秒内的碰撞概率。 */
+    val randomSuffix = UUID.randomUUID()
+        .toString()
+        .replace("-", "")
+        .take(8)
+    return "$versionName-$versionCode-$timestamp-$randomSuffix"
+}
+
 fun buildConfigString(value: String): String {
     return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n")}\""
 }
+
+/** 示例应用的 versionCode，作为编译期 buildId 的固定组成部分。 */
+val performanceVersionCode = 1
+
+/** 示例应用的 versionName，作为编译期 buildId 的固定组成部分。 */
+val performanceVersionName = "1.0"
+
+/** 当前 Gradle 命令生成并供所有构建变体共用的 buildId。 */
+val performanceBuildId = generatePerformanceBuildId(
+    versionName = performanceVersionName,
+    versionCode = performanceVersionCode,
+)
 
 val performanceAppKey = providers.gradleProperty("performance.appKey")
     .orElse("local-demo-app-key")
@@ -13,6 +43,8 @@ val performanceAppKey = providers.gradleProperty("performance.appKey")
 
 android {
     namespace = "com.example.performance"
+    // 仪器烟测直接运行混淆后的 Release 变体。
+    testBuildType = "release"
     compileSdk {
         version = release(36)
     }
@@ -25,11 +57,12 @@ android {
         applicationId = "com.example.performance"
         minSdk = 23
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = performanceVersionCode
+        versionName = performanceVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "PERFORMANCE_APP_KEY", buildConfigString(performanceAppKey))
+        buildConfigField("String", "PERFORMANCE_BUILD_ID", buildConfigString(performanceBuildId))
     }
 
     signingConfigs {
@@ -78,6 +111,8 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(project(":nativelib"))
+    // 示例页面直接调用 RheaTrace3；由 App 显式声明，不依赖 nativelib 的 API 暴露。
+    implementation("io.github.mashanshui:rhea-inhouse:1.0.3")
     implementation(libs.androidx.lifecycle.common.jvm)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

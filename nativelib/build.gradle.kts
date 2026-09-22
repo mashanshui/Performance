@@ -117,7 +117,7 @@ dependencies {
     testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.kotlinx.coroutines.core)
     implementation("com.kuaishou.koom:koom-java-leak:2.2.3")
-    api("io.github.mashanshui:rhea-inhouse:1.0.3") {
+    implementation("io.github.mashanshui:rhea-inhouse:1.0.3") {
         // 本地开发阶段同版本产物可能被重新发布，确保 Gradle 重新校验 AAR 内容。
         isChanging = true
     }

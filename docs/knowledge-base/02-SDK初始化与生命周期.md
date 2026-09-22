@@ -102,13 +102,13 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 
 ## 源码与验证依据
 
-- [PerformanceSdk.initialize/rollback/close](../../nativelib/src/main/java/com/example/nativelib/PerformanceSdk.kt)
-- [组件工厂](../../nativelib/src/main/java/com/example/nativelib/PerformanceComponentFactory.kt)
-- [RuntimeIdentity](../../nativelib/src/main/java/com/example/nativelib/identity/RuntimeIdentity.kt)
-- [ActivityLeakWatcher](../../nativelib/src/main/java/com/example/nativelib/memory/leak/ActivityLeakWatcher.kt)
-- [MemoryLeakReportReporter](../../nativelib/src/main/java/com/example/nativelib/memory/leak/MemoryLeakReportReporter.kt)
-- [OOMMonitorInitTask](../../nativelib/src/main/java/com/example/nativelib/memory/oom/OOMMonitorInitTask.kt)
-- [配置映射](../../nativelib/src/main/java/com/example/nativelib/config/NativeServiceConfig.kt)
-- [ApplicationMetadataTest](../../nativelib/src/test/java/com/example/nativelib/ApplicationMetadataTest.kt)、[PerformanceConfigTest](../../nativelib/src/test/java/com/example/nativelib/PerformanceConfigTest.kt)、[NativeServiceConfigTest](../../nativelib/src/test/java/com/example/nativelib/config/NativeServiceConfigTest.kt)、[RuntimeIdentityTest](../../nativelib/src/test/java/com/example/nativelib/identity/RuntimeIdentityTest.kt)
+- [PerformanceSdk.initialize/rollback/close](../../nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)
+- [组件工厂](../../nativelib/src/main/java/com/shanshui/performance/PerformanceComponentFactory.kt)
+- [RuntimeIdentity](../../nativelib/src/main/java/com/shanshui/performance/identity/RuntimeIdentity.kt)
+- [ActivityLeakWatcher](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/ActivityLeakWatcher.kt)
+- [MemoryLeakReportReporter](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportReporter.kt)
+- [OOMMonitorInitTask](../../nativelib/src/main/java/com/shanshui/performance/memory/oom/OOMMonitorInitTask.kt)
+- [配置映射](../../nativelib/src/main/java/com/shanshui/performance/config/NativeServiceConfig.kt)
+- [ApplicationMetadataTest](../../nativelib/src/test/java/com/shanshui/performance/ApplicationMetadataTest.kt)、[PerformanceConfigTest](../../nativelib/src/test/java/com/shanshui/performance/PerformanceConfigTest.kt)、[NativeServiceConfigTest](../../nativelib/src/test/java/com/shanshui/performance/config/NativeServiceConfigTest.kt)、[RuntimeIdentityTest](../../nativelib/src/test/java/com/shanshui/performance/identity/RuntimeIdentityTest.kt)
 
 以上测试覆盖纯值和配置边界。本轮约定的 Wrapper 命令因 `E:\AndroidSDK\.gradle\wrapper\dists\gradle-8.13-bin\ap7pdhvhnjtc6mxtzz89gkh0c\gradle-8.13-bin.zip.lck` 拒绝访问而无法启动；使用同一 Gradle 8.13 发行版的直接 `gradle.bat` 执行 `:nativelib:testDebugUnitTest :nativelib:assembleDebug :app:assembleDebug --console plain` 已 `BUILD SUCCESSFUL`。`:nativelib:assembleDebugAndroidTest` 已通过，`:nativelib:connectedDebugAndroidTest` 在 Pixel 4 XL/Android 13 上 6/6 通过；2026-09-12 又在 Huawei EML-AL00/Android API 29 以示例快速配置验证了真实 KOOM dump、`:heap_analysis` 分析进程初始化、Activity 泄漏路径和 JSON 产物。默认 10 次重检、服务端联调和更广设备/API 兼容性仍未验证。

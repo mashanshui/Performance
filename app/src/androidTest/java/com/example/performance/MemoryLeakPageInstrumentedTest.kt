@@ -1,4 +1,4 @@
-package com.example.performance
+package com.shanshui.performance
 
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click

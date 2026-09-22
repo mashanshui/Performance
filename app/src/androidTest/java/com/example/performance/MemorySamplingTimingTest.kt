@@ -1,4 +1,4 @@
-package com.example.performance
+package com.shanshui.performance
 
 import android.os.Build
 import android.os.Debug

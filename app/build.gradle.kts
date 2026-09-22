@@ -42,7 +42,7 @@ val performanceAppKey = providers.gradleProperty("performance.appKey")
     .get()
 
 android {
-    namespace = "com.example.performance"
+    namespace = "com.shanshui.performance"
     // 仪器烟测直接运行混淆后的 Release 变体。
     testBuildType = "release"
     compileSdk {

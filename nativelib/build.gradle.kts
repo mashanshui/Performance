@@ -20,7 +20,7 @@ group = publicationGroupId.get()
 version = publicationVersion.get()
 
 android {
-    namespace = "com.example.nativelib"
+    namespace = "com.shanshui.performance"
     compileSdk {
         version = release(36)
     }

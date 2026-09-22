@@ -355,14 +355,14 @@ Activity 暂停会停止该页面采集，但不会关闭 Reporter 的周期快�
 
 测试入口见 [示例调试](10-示例应用与调试路径.md)。调试打开 SUMMARY，逐帧定位时临时用 VERBOSE；性能验收使用 OFF。
 
-- [FpsReporter](../../nativelib/src/main/java/com/example/nativelib/fps/FpsReporter.kt)：生命周期、onSummary、flushAsync、close。
-- [FpsHelperV2](../../nativelib/src/main/java/com/example/nativelib/fps/FpsHelperV2.kt)：采集与算法；[FpsEventStore](../../nativelib/src/main/java/com/example/nativelib/fps/FpsEventStore.kt)：merge/snapshot/sealCurrent/recoverPreviousSession。
-- [FpsUploader](../../nativelib/src/main/java/com/example/nativelib/fps/FpsUploader.kt)：响应校验。
-- [PerformanceSdk](../../nativelib/src/main/java/com/example/nativelib/PerformanceSdk.kt)：initialize 中 FPS 创建条件、setFpsScene、flushAsync、close。
-- [PerformanceComponentFactory](../../nativelib/src/main/java/com/example/nativelib/PerformanceComponentFactory.kt)：initializeFps 到 FpsReporter.create 的生产入口。
-- [NativeServiceConfig](../../nativelib/src/main/java/com/example/nativelib/config/NativeServiceConfig.kt)：toNativeServiceConfig 的 FPS 开关映射。
-- [FpsNetworkClient](../../nativelib/src/main/java/com/example/nativelib/network/FpsNetworkClient.kt)与[FpsIngestApi](../../nativelib/src/main/java/com/example/nativelib/network/FpsIngestApi.kt)：schema v2、批次请求与网络结果。
-- [FpsHelperV2Test](../../nativelib/src/test/java/com/example/nativelib/fps/FpsHelperV2Test.kt)：刷新率归一化、过滤、诊断计数。
-- [FpsEventStoreTest](../../nativelib/src/test/java/com/example/nativelib/fps/FpsEventStoreTest.kt)：同桶合并与恢复；[FpsUploaderTest](../../nativelib/src/test/java/com/example/nativelib/fps/FpsUploaderTest.kt)：duplicate 确认与计数不匹配重试。
+- [FpsReporter](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsReporter.kt)：生命周期、onSummary、flushAsync、close。
+- [FpsHelperV2](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsHelperV2.kt)：采集与算法；[FpsEventStore](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsEventStore.kt)：merge/snapshot/sealCurrent/recoverPreviousSession。
+- [FpsUploader](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsUploader.kt)：响应校验。
+- [PerformanceSdk](../../nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)：initialize 中 FPS 创建条件、setFpsScene、flushAsync、close。
+- [PerformanceComponentFactory](../../nativelib/src/main/java/com/shanshui/performance/PerformanceComponentFactory.kt)：initializeFps 到 FpsReporter.create 的生产入口。
+- [NativeServiceConfig](../../nativelib/src/main/java/com/shanshui/performance/config/NativeServiceConfig.kt)：toNativeServiceConfig 的 FPS 开关映射。
+- [FpsNetworkClient](../../nativelib/src/main/java/com/shanshui/performance/network/FpsNetworkClient.kt)与[FpsIngestApi](../../nativelib/src/main/java/com/shanshui/performance/network/FpsIngestApi.kt)：schema v2、批次请求与网络结果。
+- [FpsHelperV2Test](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsHelperV2Test.kt)：刷新率归一化、过滤、诊断计数。
+- [FpsEventStoreTest](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsEventStoreTest.kt)：同桶合并与恢复；[FpsUploaderTest](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsUploaderTest.kt)：duplicate 确认与计数不匹配重试。
 
 本轮未执行真实 FrameMetrics、异常退出丢失窗口或设备刷新率切换验证；页面仪器测试仅证明入口和控件的断言范围，不证明 FPS 数值准确。

@@ -1,9 +1,9 @@
-package com.example.performance
+package com.shanshui.performance
 
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.example.nativelib.LooperMonitor
+import com.shanshui.nativelib.LooperMonitor
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith

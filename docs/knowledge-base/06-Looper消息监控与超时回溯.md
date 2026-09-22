@@ -72,11 +72,11 @@ Jank 演示在消息结束后计算精确消息区间并导出；超时监控在
 
 ## 源码与验证依据
 
-- [LooperMonitor](../../nativelib/src/main/java/com/example/nativelib/LooperMonitor.kt)：共享实例、目标线程安装与关闭。
-- [LooperDispatchCore](../../nativelib/src/main/java/com/example/nativelib/LooperDispatchCore.kt)：配对状态、监听快照与有界记录。
-- [LooperPrinterHook](../../nativelib/src/main/java/com/example/nativelib/LooperPrinterHook.kt)：Printer 转发、重入保护、空闲检查及所有权恢复。
-- [MessageCollect](../../nativelib/src/main/java/com/example/nativelib/MessageCollect.kt)
-- [MessageTimeoutMonitor](../../nativelib/src/main/java/com/example/nativelib/MessageTimeoutMonitor.kt)
-- [MainActivity](../../app/src/main/java/com/example/performance/MainActivity.kt)
+- [LooperMonitor](../../nativelib/src/main/java/com/shanshui/performance/LooperMonitor.kt)：共享实例、目标线程安装与关闭。
+- [LooperDispatchCore](../../nativelib/src/main/java/com/shanshui/performance/LooperDispatchCore.kt)：配对状态、监听快照与有界记录。
+- [LooperPrinterHook](../../nativelib/src/main/java/com/shanshui/performance/LooperPrinterHook.kt)：Printer 转发、重入保护、空闲检查及所有权恢复。
+- [MessageCollect](../../nativelib/src/main/java/com/shanshui/performance/MessageCollect.kt)
+- [MessageTimeoutMonitor](../../nativelib/src/main/java/com/shanshui/performance/MessageTimeoutMonitor.kt)
+- [MainActivity](../../app/src/main/java/com/shanshui/performance/MainActivity.kt)
 
-新增 [LooperMonitorTest](../../nativelib/src/test/java/com/example/nativelib/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../nativelib/src/androidTest/java/com/example/nativelib/LooperMonitorInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。
+新增 [LooperMonitorTest](../../nativelib/src/test/java/com/shanshui/performance/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../nativelib/src/androidTest/java/com/shanshui/performance/LooperMonitorInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。

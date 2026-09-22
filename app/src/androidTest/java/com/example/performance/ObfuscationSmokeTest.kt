@@ -1,8 +1,8 @@
-package com.example.performance
+package com.shanshui.performance
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.nativelib.NativeLib
+import com.shanshui.nativelib.NativeLib
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test

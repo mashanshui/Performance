@@ -102,10 +102,10 @@ KOOM HPROF dump、`:heap_analysis` 进程建索引、Activity 静态引用路径
 证据，且未再出现 `commonConfig` 未初始化异常。本轮未等待默认配置的第 10 次重检，也未验证真实
 服务端接收结果，因此不能表述为默认时序、长期设备兼容或完整服务端联调已通过。
 
-源码入口：[PerformanceSdk](../../nativelib/src/main/java/com/example/nativelib/PerformanceSdk.kt)、
-[PerformanceComponentFactory](../../nativelib/src/main/java/com/example/nativelib/PerformanceComponentFactory.kt)、
-[ActivityLeakWatcher](../../nativelib/src/main/java/com/example/nativelib/memory/leak/ActivityLeakWatcher.kt)、
-[MemoryLeakReportReporter](../../nativelib/src/main/java/com/example/nativelib/memory/leak/MemoryLeakReportReporter.kt)、
-[MemoryLeakReportStore](../../nativelib/src/main/java/com/example/nativelib/memory/leak/MemoryLeakReportStore.kt)、
-[OOMMonitorInitTask](../../nativelib/src/main/java/com/example/nativelib/memory/oom/OOMMonitorInitTask.kt)、
-[MemoryLeakConfig](../../nativelib/src/main/java/com/example/nativelib/PerformanceConfig.kt)。
+源码入口：[PerformanceSdk](../../nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)、
+[PerformanceComponentFactory](../../nativelib/src/main/java/com/shanshui/performance/PerformanceComponentFactory.kt)、
+[ActivityLeakWatcher](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/ActivityLeakWatcher.kt)、
+[MemoryLeakReportReporter](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportReporter.kt)、
+[MemoryLeakReportStore](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportStore.kt)、
+[OOMMonitorInitTask](../../nativelib/src/main/java/com/shanshui/performance/memory/oom/OOMMonitorInitTask.kt)、
+[MemoryLeakConfig](../../nativelib/src/main/java/com/shanshui/performance/PerformanceConfig.kt)。

@@ -1,4 +1,4 @@
-package com.example.performance
+package com.shanshui.performance
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4

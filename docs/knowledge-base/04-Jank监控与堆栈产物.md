@@ -75,12 +75,12 @@ flowchart LR
 
 观察 `jank export request submitted`、`jank export completed` 和 `jank artifact: eventId=... http=... code=... outcome=...`，按同一 eventId 关联。Rhea 回调不自动切主线程。
 
-- [MainActivity](../../app/src/main/java/com/example/performance/MainActivity.kt)：消息边界、阈值与事件构造。
-- [JankTraceAdapter](../../nativelib/src/main/java/com/example/nativelib/jank/JankTraceAdapter.kt)：外部依赖边界。
-- [RuntimeIdentity](../../nativelib/src/main/java/com/example/nativelib/identity/RuntimeIdentity.kt)：进程级身份来源。
-- [JankArtifactReporter](../../nativelib/src/main/java/com/example/nativelib/jank/JankArtifactReporter.kt)：初始化、enqueueArtifact、调度。
-- [FileJankUploadQueue](../../nativelib/src/main/java/com/example/nativelib/jank/FileJankUploadQueue.kt)、[JankArtifactUploader](../../nativelib/src/main/java/com/example/nativelib/jank/JankArtifactUploader.kt)。
-- [队列测试](../../nativelib/src/test/java/com/example/nativelib/jank/FileJankUploadQueueTest.kt)、[上传器测试](../../nativelib/src/test/java/com/example/nativelib/jank/JankArtifactUploaderTest.kt)、[网络测试](../../nativelib/src/test/java/com/example/nativelib/network/NetworkClientTest.kt)：对账、恢复、确认/重试/永久失败、删除重试、原字节请求。
+- [MainActivity](../../app/src/main/java/com/shanshui/performance/MainActivity.kt)：消息边界、阈值与事件构造。
+- [JankTraceAdapter](../../nativelib/src/main/java/com/shanshui/performance/jank/JankTraceAdapter.kt)：外部依赖边界。
+- [RuntimeIdentity](../../nativelib/src/main/java/com/shanshui/performance/identity/RuntimeIdentity.kt)：进程级身份来源。
+- [JankArtifactReporter](../../nativelib/src/main/java/com/shanshui/performance/jank/JankArtifactReporter.kt)：初始化、enqueueArtifact、调度。
+- [FileJankUploadQueue](../../nativelib/src/main/java/com/shanshui/performance/jank/FileJankUploadQueue.kt)、[JankArtifactUploader](../../nativelib/src/main/java/com/shanshui/performance/jank/JankArtifactUploader.kt)。
+- [队列测试](../../nativelib/src/test/java/com/shanshui/performance/jank/FileJankUploadQueueTest.kt)、[上传器测试](../../nativelib/src/test/java/com/shanshui/performance/jank/JankArtifactUploaderTest.kt)、[网络测试](../../nativelib/src/test/java/com/shanshui/performance/network/NetworkClientTest.kt)：对账、恢复、确认/重试/永久失败、删除重试、原字节请求。
 
 上述客户端测试通过替身隔离 Rhea，另有外部 `rhea-inhouse-noop:test` 验证公开 `processId` API 和
 UUID v4 校验；本轮已在 EML-AL00/API 29 运行 Rhea 1.0.3 AndroidTest，生成并由 Processor 解析新 ZIP，

@@ -3,7 +3,7 @@ package com.shanshui.performance
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.shanshui.nativelib.LooperMonitor
+import com.shanshui.performance.LooperMonitor
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,7 +11,9 @@ import org.junit.runner.RunWith
 /** 验证页面重建不累积主线程监听，销毁后恢复原监听数量。 */
 @RunWith(AndroidJUnit4::class)
 class LooperLifecycleInstrumentedTest {
-    @Test fun recreationKeepsSingleListenerAndDestroyUnregisters() {
+    /** 验证重建和销毁过程不会重复注册主线程监听。 */
+    @Test
+    fun recreationKeepsSingleListenerAndDestroyUnregisters() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         instrumentation.waitForIdleSync()
         val monitor = LooperMonitor.sMainMonitor

@@ -22,7 +22,7 @@
 
 ## 2. 源码地图与三个角色
 
-主要文件：[FpsHelperV2.kt](nativelib/src/main/java/com/shanshui/performance/fps/FpsHelperV2.kt)。下表行号对应本次分析版本，后续代码变化时以函数名为准。
+主要文件：[FpsHelperV2.kt](performance-metrics/src/main/java/com/shanshui/performance/fps/FpsHelperV2.kt)。下表行号对应本次分析版本，后续代码变化时以函数名为准。
 
 | 类型或函数 | 大致行号 | 职责 |
 | --- | --- | --- |
@@ -36,7 +36,7 @@
 | `logIntervalSummary()` | 484 | 取出并清空日志桶 |
 | `emitSummary()` | 512 | 将场景桶交给上层监听器 |
 
-外围调用参考：[FpsReporter.kt](nativelib/src/main/java/com/shanshui/performance/fps/FpsReporter.kt)、[FpsEventStore.kt](nativelib/src/main/java/com/shanshui/performance/fps/FpsEventStore.kt)、[PerformanceSdk.kt](nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)。
+外围调用参考：[FpsReporter.kt](performance-metrics/src/main/java/com/shanshui/performance/fps/FpsReporter.kt)、[FpsEventStore.kt](performance-metrics/src/main/java/com/shanshui/performance/fps/FpsEventStore.kt)、[PerformanceSdk.kt](performance-sdk/src/main/java/com/shanshui/performance/PerformanceSdk.kt)。
 
 ```mermaid
 flowchart TD
@@ -345,7 +345,7 @@ Reporter 拒绝 A，因为已经停止接收
 
 本次完成了当前源码静态核对、Android 官方 API 定义查阅、数值例子的脚本复算，以及文档本地链接与差异格式检查。只新增本独立文档，保留分析开始前的工作区修改。
 
-现有 [FpsHelperV2Test.kt](nativelib/src/test/java/com/shanshui/performance/fps/FpsHelperV2Test.kt) 包含 6 个测试方法，覆盖 60 Hz、90/120 Hz、两倍预算慢帧、空桶/无效耗时、丢失数独立累加、快照重置。**这些测试主要验证纯累加器的自定义公式，没有验证真实呈现 FPS，也没有通过实际 Helper 回调覆盖第 9.2 节的漏计路径。**
+现有 [FpsHelperV2Test.kt](performance-metrics/src/test/java/com/shanshui/performance/fps/FpsHelperV2Test.kt) 包含 6 个测试方法，覆盖 60 Hz、90/120 Hz、两倍预算慢帧、空桶/无效耗时、丢失数独立累加、快照重置。**这些测试主要验证纯累加器的自定义公式，没有验证真实呈现 FPS，也没有通过实际 Helper 回调覆盖第 9.2 节的漏计路径。**
 
 本次未运行 Gradle/JVM 测试、Android 构建、真机、服务端联调和并发复现。数值复算不等于执行 Kotlin 测试；没有把既往测试结果当成本次通过证据。
 

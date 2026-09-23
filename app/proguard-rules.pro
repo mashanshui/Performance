@@ -26,3 +26,20 @@
 # Release 仪器 runner 初始化测试目录时通过 Kotlin lazy 属性访问测试存储。
 -keep class kotlin.LazyKt { *; }
 -keep interface kotlin.Lazy { *; }
+
+# Release 仪器测试在测试 APK 中引用应用资源类；资源收缩不能删除这些 R 内部类。
+-keep class com.shanshui.performance.R { *; }
+-keep class com.shanshui.performance.R$* { *; }
+
+# Release 仪器测试与 App 共用 Kotlin 标准库的二进制 ABI；保留其类名和桥接方法，避免测试 APK
+# 与混淆后的 App 对同一扩展函数解析出不同签名。
+-keep class kotlin.** { *; }
+
+# AndroidX Test 通过 Class.forName 探测该轻量 Future 接口，避免 Release 测试 APK 删除它。
+-keep interface com.google.common.util.concurrent.ListenableFuture { *; }
+
+# 设备内存测试调用 startsWith 的默认参数桥接方法，保留 Kotlin 文本扩展类的 ABI。
+-keep class kotlin.text.StringsKt { *; }
+
+# 泄漏仪器测试需要进程级强引用真实保留 Activity；R8 不应把仅用于持有对象的测试夹具优化掉。
+-keep class com.shanshui.performance.MemoryLeakTestHolder { *; }

@@ -1,5 +1,9 @@
 # Crash 采集与上报
 
+
+## 2026-09-22 模块化说明
+
+当前 Crash 实现归属 `performance-crash`，共享上下文和网络会话分别来自 `performance-core` 与 `performance-transport`。
 [返回导航](README.md)
 
 ## 功能与入口
@@ -64,11 +68,11 @@ HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退
 
 ## 源码与验证依据
 
-- [CrashReporter](../../nativelib/src/main/java/com/shanshui/performance/crash/CrashReporter.kt)：start、captureAndFlush、flushSynchronously、close。
-- [CrashEventFactory / ThrowableMapper](../../nativelib/src/main/java/com/shanshui/performance/crash/CrashEventFactory.kt)、[FileCrashQueue](../../nativelib/src/main/java/com/shanshui/performance/crash/FileCrashQueue.kt)、[CrashUploader](../../nativelib/src/main/java/com/shanshui/performance/crash/CrashUploader.kt)。
-- [CrashEventFactoryTest](../../nativelib/src/test/java/com/shanshui/performance/crash/CrashEventFactoryTest.kt)：脱敏、链长/帧数限制与启动元数据。
-- [FileCrashQueueTest](../../nativelib/src/test/java/com/shanshui/performance/crash/FileCrashQueueTest.kt)：重试状态和 dead-letter。
-- [CrashUploaderTest](../../nativelib/src/test/java/com/shanshui/performance/crash/CrashUploaderTest.kt)：部分成功、原 eventId 重试和异常定位。
-- [RuntimeIdentityTest](../../nativelib/src/test/java/com/shanshui/performance/identity/RuntimeIdentityTest.kt)：主/子进程身份规则和 UUID v4 校验。
+- [CrashReporter](../../performance-crash/src/main/java/com/shanshui/performance/crash/CrashReporter.kt)：start、captureAndFlush、flushSynchronously、close。
+- [CrashEventFactory / ThrowableMapper](../../performance-crash/src/main/java/com/shanshui/performance/crash/CrashEventFactory.kt)、[FileCrashQueue](../../performance-crash/src/main/java/com/shanshui/performance/crash/FileCrashQueue.kt)、[CrashUploader](../../performance-crash/src/main/java/com/shanshui/performance/crash/CrashUploader.kt)。
+- [CrashEventFactoryTest](../../performance-crash/src/test/java/com/shanshui/performance/crash/CrashEventFactoryTest.kt)：脱敏、链长/帧数限制与启动元数据。
+- [FileCrashQueueTest](../../performance-crash/src/test/java/com/shanshui/performance/crash/FileCrashQueueTest.kt)：重试状态和 dead-letter。
+- [CrashUploaderTest](../../performance-crash/src/test/java/com/shanshui/performance/crash/CrashUploaderTest.kt)：部分成功、原 eventId 重试和异常定位。
+- [RuntimeIdentityTest](../../performance-core/src/test/java/com/shanshui/performance/identity/RuntimeIdentityTest.kt)：主/子进程身份规则和 UUID v4 校验。
 
 2026-09-13 修复前在 Pixel 4 XL / Android 13（API 33）上安装 Debug APK，点击主页面“崩溃上传测试”按钮，确认 `AndroidRuntime` 收到 `IllegalStateException: Crash upload test triggered from MainActivity`，`CrashReporter` 发起请求并收到 HTTP 400，随后将包含该 Crash 事件的记录移入 `dead-letter`。该结果仅证明旧版按钮、未捕获异常、事件生成、持久化和上传尝试链路已执行；协议修复后的真实设备和服务端接收结果尚未重新验证。

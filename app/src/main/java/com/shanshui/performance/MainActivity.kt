@@ -8,7 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.bytedance.rheatrace.RheaTrace3
+import com.shanshui.performance.jank.JankDiagnostics
+import com.shanshui.performance.jank.JankEvent
+import com.shanshui.performance.jank.JankExportStatus
 
 class MainActivity : AppCompatActivity() {
     private val TAG = "MainActivity"
@@ -60,9 +62,9 @@ class MainActivity : AppCompatActivity() {
         override fun onMessageBegin(log: String, beginNs: Long) {
             if (timingActive) {
                 timingActive = false
-                RheaTrace3.endStackTiming()
+                JankDiagnostics.endStackTiming()
             }
-            RheaTrace3.beginStackTiming()
+            JankDiagnostics.beginStackTiming()
             timingActive = true
 //            Log.e(TAG, "onMessageBegin: ")
         }
@@ -75,7 +77,7 @@ class MainActivity : AppCompatActivity() {
             }
             timingActive = false
             // 每条消息均关闭计时会话，仅长消息输出诊断并导出。
-            val report = RheaTrace3.endStackTiming()
+            val report = JankDiagnostics.endStackTiming()
             if (endNs - beginNs > 60_000_000L) {
                 Log.e(TAG, "onMessageEnd: $endNs")
                 // 执行消息任务
@@ -83,33 +85,35 @@ class MainActivity : AppCompatActivity() {
                     .toTypedArray()) {
                     Log.i("StackDiagnostics", line)
                 }
-                RheaTrace3.captureStackTrace(false)
+                JankDiagnostics.captureStackTrace(false)
                 // Jank 事件必须使用 SDK 当前进程共享的 sessionId，不能再使用演示占位值。
                 val sdk = PerformanceSdk.current() ?: return
-                val event = RheaTrace3.JankEvent.builder()
-                    .setEventId("demo-jank-$endNs")
-                    .setOccurredAt(System.currentTimeMillis())
-                    .setSessionId(sdk.sessionId)
-                    .setScene("main_activity")
-                    .setMessageStartNs(beginNs)
-                    .setMessageEndNs(endNs)
-                    .setThresholdNs(60_000_000L)
-                    .setAttemptedSampleCount(1)
-                    .build()
+                val event = JankEvent(
+                    eventId = "demo-jank-$endNs",
+                    occurredAt = System.currentTimeMillis(),
+                    sessionId = sdk.sessionId,
+                    scene = "main_activity",
+                    messageStartNs = beginNs,
+                    messageEndNs = endNs,
+                    thresholdNs = 60_000_000L,
+                    attemptedSampleCount = 1L,
+                )
                 val exportRequest = sdk.exportAndEnqueue(event) { uploadResult ->
-                    Log.e(TAG, "onMessageEnd: "+uploadResult.exportResult.artifact.path)
-                    if (uploadResult.exportResult.isSuccess) {
+                    Log.e(TAG, "onMessageEnd: ${uploadResult.artifactPath.orEmpty()}")
+                    if (uploadResult.status == JankExportStatus.SUCCESS ||
+                        uploadResult.status == JankExportStatus.PARTIAL
+                    ) {
                         Log.i(
                             TAG,
                             "jank export completed: eventId=${event.eventId} " +
-                                "status=${uploadResult.exportResult.status.name} " +
+                                "status=${uploadResult.status.name} " +
                                 "queued=${uploadResult.queued}",
                         )
                     } else {
                         Log.w(
                             TAG,
                             "jank export failed: eventId=${event.eventId} " +
-                                "status=${uploadResult.exportResult.status.name}",
+                                "status=${uploadResult.status.name}",
                         )
                     }
                 }
@@ -128,7 +132,7 @@ class MainActivity : AppCompatActivity() {
         try {
             if (timingActive) {
                 timingActive = false
-                RheaTrace3.endStackTiming()
+                JankDiagnostics.endStackTiming()
             }
         } finally {
             super.onDestroy()

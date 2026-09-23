@@ -1,5 +1,9 @@
 # Looper 消息监控与超时回溯
 
+
+## 2026-09-22 模块化说明
+
+当前 Looper 实现归属 `performance-metrics`，不依赖 JNI；仪器测试和跨 Android 版本兼容仍需独立验收。
 [返回导航](README.md)
 
 ## 三个组件的分工
@@ -34,7 +38,7 @@
 
 ## 逐条历史与近期统计
 
-使用独立的 `configureRecording(RecordingConfig(...))` 显式开启，字段默认值和示例统一见[配置指南](../../nativelib/CONFIGURATION.md#looper-独立配置)。两项开关互相独立，均不受 `PerformanceConfig` 控制。
+使用独立的 `configureRecording(RecordingConfig(...))` 显式开启，字段默认值和示例统一见[配置指南](16-SDK配置指南.md#looper-独立配置)。两项开关互相独立，均不受 `PerformanceConfig` 控制。
 
 历史与近期列表使用有界内存环形队列，每条记录保存开始日志、开始/结束纳秒和耗时，不创建逐消息后台任务。`historySnapshot(false)` 返回已完成历史的不可变副本；默认 `includeCurrent=true` 可额外附加一条执行中消息，`endNs=null`，`durationNs` 为查询时的已执行时间。这一附加项不占已完成队列容量，查询不修改内部历史。
 
@@ -72,11 +76,11 @@ Jank 演示在消息结束后计算精确消息区间并导出；超时监控在
 
 ## 源码与验证依据
 
-- [LooperMonitor](../../nativelib/src/main/java/com/shanshui/performance/LooperMonitor.kt)：共享实例、目标线程安装与关闭。
-- [LooperDispatchCore](../../nativelib/src/main/java/com/shanshui/performance/LooperDispatchCore.kt)：配对状态、监听快照与有界记录。
-- [LooperPrinterHook](../../nativelib/src/main/java/com/shanshui/performance/LooperPrinterHook.kt)：Printer 转发、重入保护、空闲检查及所有权恢复。
-- [MessageCollect](../../nativelib/src/main/java/com/shanshui/performance/MessageCollect.kt)
-- [MessageTimeoutMonitor](../../nativelib/src/main/java/com/shanshui/performance/MessageTimeoutMonitor.kt)
+- [LooperMonitor](../../performance-metrics/src/main/java/com/shanshui/performance/LooperMonitor.kt)：共享实例、目标线程安装与关闭。
+- [LooperDispatchCore](../../performance-metrics/src/main/java/com/shanshui/performance/LooperDispatchCore.kt)：配对状态、监听快照与有界记录。
+- [LooperPrinterHook](../../performance-metrics/src/main/java/com/shanshui/performance/LooperPrinterHook.kt)：Printer 转发、重入保护、空闲检查及所有权恢复。
+- [MessageCollect](../../performance-metrics/src/main/java/com/shanshui/performance/MessageCollect.kt)
+- [MessageTimeoutMonitor](../../performance-metrics/src/main/java/com/shanshui/performance/MessageTimeoutMonitor.kt)
 - [MainActivity](../../app/src/main/java/com/shanshui/performance/MainActivity.kt)
 
-新增 [LooperMonitorTest](../../nativelib/src/test/java/com/shanshui/performance/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../nativelib/src/androidTest/java/com/shanshui/performance/LooperMonitorInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。
+新增 [LooperMonitorTest](../../performance-metrics/src/test/java/com/shanshui/performance/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。

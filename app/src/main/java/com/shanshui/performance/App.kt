@@ -20,19 +20,19 @@ class App : Application() {
                 application = this,
                 appKey = "apm_ak_UowWFkzFaZcYmP64C761KRR41ySgjuZ6FL9-P5bJ6x8",
                 config = PerformanceConfig(
-                    service = ServiceConfig(enableNetworkLogging = true),
-                    // 使用 app 模块在本次 Gradle 命令中生成的 buildId。
-                    crash = CrashConfig(
+                    service = ServiceConfig(
+                        enableNetworkLogging = true,
                         buildId = BuildConfig.PERFORMANCE_BUILD_ID,
                     ),
+                    // 使用 app 模块在本次 Gradle 命令中生成的 buildId。
                     jank = JankConfig(
-                        fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
                         enableStackCaptureStats = true,
                         enableObjectAllocation = true,
                         enableWakeup = true,
                         enableRusage = true,
-                        enableJniHook = true
+                        enableJniHook = true,
                     ),
+                    fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
                     memoryLeak = MemoryLeakConfig(
                         enabled = true,
                         foregroundScanIntervalMillis = 5_000L,

@@ -35,6 +35,7 @@ out/
 # Gradle files
 .gradle
 .gradle/
+/.gradle-local/
 build/
 
 # Signing files
@@ -175,4 +176,3 @@ google-services.json
 
 # Android Profiling
 *.hprof
-

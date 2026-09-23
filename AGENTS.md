@@ -7,14 +7,15 @@
 - [模块架构与源码导航](docs/knowledge-base/01-模块架构与源码导航.md)
 - [服务端对接与数据协议](docs/knowledge-base/09-服务端对接与数据协议.md)
 - [常见问题与待验证事项](docs/knowledge-base/12-常见问题与待验证事项.md)
-- [SDK 配置指南](nativelib/CONFIGURATION.md)与[FPS 算法说明](nativelib/FPS_ALGORITHM.md)
+- [SDK 配置指南](docs/knowledge-base/16-SDK配置指南.md)与[FPS 算法说明](docs/knowledge-base/17-FPS算法说明.md)
 
 根目录以本文件作为项目规范和知识库入口，不另设根目录 README.md。
 
 ## 项目结构与模块组织
 
 - `app/` 是可运行的 Android 应用，界面、演示页面和资源分别位于 `src/main/java` 与 `src/main/res`。
-- `nativelib/` 是性能工具库，包含 Kotlin/Java 实现及 `src/main/cpp/` 下的 JNI/CMake 原生代码；当前原生构建限定 `arm64-v8a`。
+- `performance-core/`、`performance-transport/`、`performance-crash/`、`performance-jank/`、`performance-metrics/`、`performance-leak/`、`performance-sdk/` 是按能力拆分的 Android Library；`performance-native-tools/` 单独承载 Kotlin/Java 工具及 JNI/CMake 原生代码，当前原生构建限定 `arm64-v8a`。
+- 旧单体 `nativelib/` 已删除；配置与算法说明位于 `docs/knowledge-base/`，原生 SO 名仍为 `nativelib`。
 - 单元测试放在各模块的 `src/test`，设备测试放在 `src/androidTest`。根目录的 `settings.gradle.kts`、`build.gradle.kts` 和 `gradle/libs.versions.toml` 管理模块与依赖。
 
 ## 构建、测试和开发命令
@@ -23,7 +24,7 @@
 
 - `.\gradlew.bat assembleDebug`：编译 Debug APK 和库产物。
 - `.\gradlew.bat test`：运行所有 JVM 单元测试。
-- `.\gradlew.bat :app:testDebugUnitTest`：只运行应用模块的 Debug 单元测试；将 `app` 替换为 `nativelib` 可测试库模块。
+- `.\gradlew.bat :app:testDebugUnitTest`：只运行应用模块的 Debug 单元测试；各功能库使用对应的 `:performance-*:testDebugUnitTest` 任务。
 - `.\gradlew.bat connectedAndroidTest`：在已连接的设备或模拟器上运行仪器测试。
 - `.\gradlew.bat check`：执行项目配置的校验任务，适合提交前快速检查。
 
@@ -49,11 +50,11 @@ Kotlin、Java、C++ 均使用 4 个空格缩进，沿用 Android Studio 默认�
 
 - 每次修改项目后，必须评估改动是否影响知识库中的功能说明、执行链路、配置、协议、构建测试或能力状态；如有影响，必须在同一次改动中更新对应知识库文档及相关导航，保持知识库与当前项目实现一致。新增或删除功能时也应同步补充或移除相关说明，不能只修改代码而保留过时文档。
 - `docs/knowledge-base/` 维护功能机制、源码调用链、生命周期、设计取舍和验证边界；总导航由该目录 README.md 维护。
-- `nativelib/CONFIGURATION.md` 是配置字段、默认值与校验限制的详细参考；`nativelib/FPS_ALGORITHM.md` 是 FPS 公式与统计口径的详细参考。知识库引用这些文档，避免重复维护完整参数表。
+- `docs/knowledge-base/16-SDK配置指南.md` 是配置字段、默认值与校验限制的详细参考；`docs/knowledge-base/17-FPS算法说明.md` 是 FPS 公式与统计口径的详细参考。知识库引用这些文档，避免重复维护完整参数表。
 - 修改初始化或公共 API 时同步知识库 02 和配置指南；修改 Crash/Jank/FPS 时同步 03/04/05；修改 Looper 或线程/JNI 时同步 06/07。
 - 修改网络、队列、响应处理或数据模型时同步 08/09；服务端契约应核对 apm-server 的对应文档，客户端与服务端差异必须明确记录。
 - 修改示例、构建、依赖或测试入口时同步 10/11；能力状态集中更新 00，待处理差异和验证缺口集中更新 12。
 - 文档中的“已实现”“存在测试”“测试通过”“真机通过”“联调通过”分别需要对应证据。未运行的验证标注为未执行，不沿用历史成功记录替代当前结果。
-- 新增专题必须加入总导航，使用仓库相对源码链接和函数名定位；跨仓库链接标明外部检出依赖。保留已有文档路径，必要迁移时同步所有引用。
+- 新增专题必须加入总导航，使用仓库相对源码链接和函数名定位；跨仓库链接标明外部检出依赖。迁移文档时同步所有引用。
 - 文档修改完成后检查本地链接、导航覆盖、代码/配置一致性并运行 `git diff --check`。纯文档修改不要求运行 Android 构建；涉及实现时按原测试指南验证。
 - 文档示例使用占位凭据，不复制实际 App Key、设备隐私数据或机器专属运行产物。

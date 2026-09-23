@@ -1,5 +1,9 @@
 # Activity 内存泄漏检测与 OOM 触发
 
+
+## 2026-09-22 模块化说明
+
+当前 Activity 泄漏实现归属 `performance-leak`；KOOM 只在该模块内部转换和调用，SDK 公开层不暴露 KOOM 类型。
 [返回导航](README.md)
 
 ## 状态与范围
@@ -92,9 +96,10 @@ KOOM 的 `mHasDumped` 保证同一进程最多执行一次 HPROF dump/analysis �
 
 ## 验证边界
 
-`:nativelib:testDebugUnitTest` 本轮通过，覆盖 multipart 请求、accepted/duplicate、队列恢复、
-重试和永久错误隔离。`:nativelib:connectedDebugAndroidTest` 在 Pixel 4 XL / Android 13 上
-6/6 通过；该测试使用 fake callback 验证真实 Activity 生命周期、后台回调和 close 清理，
+`:performance-leak:testDebugUnitTest` 本轮通过，覆盖 multipart 请求、accepted/duplicate、队列恢复、
+重试和永久错误隔离。旧 `:nativelib:connectedDebugAndroidTest` 设备记录仅作历史背景；本轮模块化后的
+`:app:connectedReleaseAndroidTest` 已在 Pixel 4 XL/API 33 完成 9/9，包含真实 KOOM report 产物、
+`:heap_analysis` 分析进程和本地 report 入队。旧测试仍为 6/6；该测试使用 fake callback 验证真实 Activity 生命周期、后台回调和 close 清理，
 未执行真实 KOOM dump。
 
 2026-09-12 已在 Huawei EML-AL00 / Android API 29 上使用示例快速配置完成真实设备烟测：泄漏确认、
@@ -102,10 +107,10 @@ KOOM HPROF dump、`:heap_analysis` 进程建索引、Activity 静态引用路径
 证据，且未再出现 `commonConfig` 未初始化异常。本轮未等待默认配置的第 10 次重检，也未验证真实
 服务端接收结果，因此不能表述为默认时序、长期设备兼容或完整服务端联调已通过。
 
-源码入口：[PerformanceSdk](../../nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)、
-[PerformanceComponentFactory](../../nativelib/src/main/java/com/shanshui/performance/PerformanceComponentFactory.kt)、
-[ActivityLeakWatcher](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/ActivityLeakWatcher.kt)、
-[MemoryLeakReportReporter](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportReporter.kt)、
-[MemoryLeakReportStore](../../nativelib/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportStore.kt)、
-[OOMMonitorInitTask](../../nativelib/src/main/java/com/shanshui/performance/memory/oom/OOMMonitorInitTask.kt)、
-[MemoryLeakConfig](../../nativelib/src/main/java/com/shanshui/performance/PerformanceConfig.kt)。
+源码入口：[PerformanceSdk](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceSdk.kt)、
+[PerformanceComponentFactory](../../performance-core/src/main/java/com/shanshui/performance/core/PerformanceComponent.kt)、
+[ActivityLeakWatcher](../../performance-leak/src/main/java/com/shanshui/performance/memory/leak/ActivityLeakWatcher.kt)、
+[MemoryLeakReportReporter](../../performance-leak/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportReporter.kt)、
+[MemoryLeakReportStore](../../performance-leak/src/main/java/com/shanshui/performance/memory/leak/MemoryLeakReportStore.kt)、
+[OOMMonitorInitTask](../../performance-leak/src/main/java/com/shanshui/performance/memory/oom/OOMMonitorInitTask.kt)、
+[MemoryLeakConfig](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceConfig.kt)。

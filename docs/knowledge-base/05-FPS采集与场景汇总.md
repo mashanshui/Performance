@@ -1,5 +1,9 @@
 # FPS 收集说明：执行时机、调用链与流程图
 
+
+## 2026-09-22 模块化说明
+
+当前 FPS 实现归属 `performance-metrics`，配置使用 `PerformanceConfig.fps` 顶层字段；完整公式仍见配置与算法说明。
 [返回导航](README.md)
 
 本文按当前源码说明 FPS 从 SDK 初始化、Window 帧回调到场景结算、快照、封存、上传的全过程。核对日期：2026-09-16。本轮 JVM 测试已覆盖统一身份和 current 快照恢复，未执行设备采集或服务端联调。
@@ -48,7 +52,7 @@ FPS 与 Jank 的关联在配置层：FPS 开关是 `jank.enabled && jank.fps.ena
 
 1 秒日志使用 Handler.postDelayed；5 秒快照和 30 秒上传使用同一个单线程 scheduler 的 scheduleAtFixedRate。以上都是安排间隔，不是精确执行时间承诺。上传等待、磁盘工作或线程调度会影响实际触发时刻。
 
-完整可配置参数仍统一维护在 [FpsConfig 配置指南](../../nativelib/CONFIGURATION.md)，这里仅列出理解执行时机所需的默认间隔。
+完整可配置参数仍统一维护在 [FpsConfig 配置指南](16-SDK配置指南.md)，这里仅列出理解执行时机所需的默认间隔。
 
 ## 3. 全链路总览
 
@@ -218,7 +222,7 @@ Store.merge 直接在调用方线程执行，并非总是 fps-frame-metrics：�
 
 ## 7. 统计口径
 
-完整公式和日志字段以 [FPS 算法说明](../../nativelib/FPS_ALGORITHM.md) 为准。关键语义是有效帧数除以有效渲染时长，再按刷新率归一化到 60；静止期间不补造帧，也不把等待时间填入分母。
+完整公式和日志字段以 [FPS 算法说明](17-FPS算法说明.md) 为准。关键语义是有效帧数除以有效渲染时长，再按刷新率归一化到 60；静止期间不补造帧，也不把等待时间填入分母。
 
 `dropCountSinceLastInvocation` 仅是回调丢失诊断，不补进刷新帧数。相同会话内按 `scene + algorithmVersion + refreshRateHz` 合并原始计数和纳秒时长，不能直接平均 FPS。算法版本 `fps-v1` 与网络 schema v2 是不同维度。
 
@@ -355,14 +359,14 @@ Activity 暂停会停止该页面采集，但不会关闭 Reporter 的周期快�
 
 测试入口见 [示例调试](10-示例应用与调试路径.md)。调试打开 SUMMARY，逐帧定位时临时用 VERBOSE；性能验收使用 OFF。
 
-- [FpsReporter](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsReporter.kt)：生命周期、onSummary、flushAsync、close。
-- [FpsHelperV2](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsHelperV2.kt)：采集与算法；[FpsEventStore](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsEventStore.kt)：merge/snapshot/sealCurrent/recoverPreviousSession。
-- [FpsUploader](../../nativelib/src/main/java/com/shanshui/performance/fps/FpsUploader.kt)：响应校验。
-- [PerformanceSdk](../../nativelib/src/main/java/com/shanshui/performance/PerformanceSdk.kt)：initialize 中 FPS 创建条件、setFpsScene、flushAsync、close。
-- [PerformanceComponentFactory](../../nativelib/src/main/java/com/shanshui/performance/PerformanceComponentFactory.kt)：initializeFps 到 FpsReporter.create 的生产入口。
-- [NativeServiceConfig](../../nativelib/src/main/java/com/shanshui/performance/config/NativeServiceConfig.kt)：toNativeServiceConfig 的 FPS 开关映射。
-- [FpsNetworkClient](../../nativelib/src/main/java/com/shanshui/performance/network/FpsNetworkClient.kt)与[FpsIngestApi](../../nativelib/src/main/java/com/shanshui/performance/network/FpsIngestApi.kt)：schema v2、批次请求与网络结果。
-- [FpsHelperV2Test](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsHelperV2Test.kt)：刷新率归一化、过滤、诊断计数。
-- [FpsEventStoreTest](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsEventStoreTest.kt)：同桶合并与恢复；[FpsUploaderTest](../../nativelib/src/test/java/com/shanshui/performance/fps/FpsUploaderTest.kt)：duplicate 确认与计数不匹配重试。
+- [FpsReporter](../../performance-metrics/src/main/java/com/shanshui/performance/fps/FpsReporter.kt)：生命周期、onSummary、flushAsync、close。
+- [FpsHelperV2](../../performance-metrics/src/main/java/com/shanshui/performance/fps/FpsHelperV2.kt)：采集与算法；[FpsEventStore](../../performance-metrics/src/main/java/com/shanshui/performance/fps/FpsEventStore.kt)：merge/snapshot/sealCurrent/recoverPreviousSession。
+- [FpsUploader](../../performance-metrics/src/main/java/com/shanshui/performance/fps/FpsUploader.kt)：响应校验。
+- [PerformanceSdk](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceSdk.kt)：initialize 中 FPS 创建条件、setFpsScene、flushAsync、close。
+- [PerformanceComponentFactory](../../performance-core/src/main/java/com/shanshui/performance/core/PerformanceComponent.kt)：initializeFps 到 FpsReporter.create 的生产入口。
+- [PerformanceConfig](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceConfig.kt)：顶层 `fps` 配置映射到 Metrics 组件，已移除旧 `NativeServiceConfig`。
+- [FpsNetworkClient](../../performance-metrics/src/main/java/com/shanshui/performance/network/FpsNetworkClient.kt)与[FpsIngestApi](../../performance-metrics/src/main/java/com/shanshui/performance/network/FpsIngestApi.kt)：schema v2、批次请求与网络结果。
+- [FpsHelperV2Test](../../performance-metrics/src/test/java/com/shanshui/performance/fps/FpsHelperV2Test.kt)：刷新率归一化、过滤、诊断计数。
+- [FpsEventStoreTest](../../performance-metrics/src/test/java/com/shanshui/performance/fps/FpsEventStoreTest.kt)：同桶合并与恢复；[FpsUploaderTest](../../performance-metrics/src/test/java/com/shanshui/performance/fps/FpsUploaderTest.kt)：duplicate 确认与计数不匹配重试。
 
 本轮未执行真实 FrameMetrics、异常退出丢失窗口或设备刷新率切换验证；页面仪器测试仅证明入口和控件的断言范围，不证明 FPS 数值准确。

@@ -110,12 +110,14 @@ dependencies {
     implementation(libs.material)
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
-    implementation(project(":nativelib"))
-    // 示例页面直接调用 RheaTrace3；由 App 显式声明，不依赖 nativelib 的 API 暴露。
-    implementation("io.github.mashanshui:rhea-inhouse:1.0.3")
+    // 全量监控入口与原生工具按显式能力分别接入。
+    implementation(project(":performance-sdk"))
+    implementation(project(":performance-native-tools"))
     implementation(libs.androidx.lifecycle.common.jvm)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    // Release 仪器测试直接调用 Kotlin 标准库扩展，确保测试 APK 携带其运行时实现。
+    androidTestImplementation(kotlin("stdlib"))
     implementation("io.github.cymchad:BaseRecyclerViewAdapterHelper4:4.3.2")
 }

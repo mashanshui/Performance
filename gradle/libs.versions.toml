@@ -13,6 +13,7 @@ lifecycleCommonJvm = "2.10.0"
 retrofit = "3.0.0"
 okhttp = "4.12.0"
 kotlinxCoroutines = "1.10.2"
+koomJavaLeak = "2.2.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +31,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+koom-java-leak = { group = "com.kuaishou.koom", name = "koom-java-leak", version.ref = "koomJavaLeak" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

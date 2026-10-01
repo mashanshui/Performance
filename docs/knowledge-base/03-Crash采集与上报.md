@@ -76,3 +76,7 @@ HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退
 - [RuntimeIdentityTest](../../performance-core/src/test/java/com/shanshui/performance/identity/RuntimeIdentityTest.kt)：主/子进程身份规则和 UUID v4 校验。
 
 2026-09-13 修复前在 Pixel 4 XL / Android 13（API 33）上安装 Debug APK，点击主页面“崩溃上传测试”按钮，确认 `AndroidRuntime` 收到 `IllegalStateException: Crash upload test triggered from MainActivity`，`CrashReporter` 发起请求并收到 HTTP 400，随后将包含该 Crash 事件的记录移入 `dead-letter`。该结果仅证明旧版按钮、未捕获异常、事件生成、持久化和上传尝试链路已执行；协议修复后的真实设备和服务端接收结果尚未重新验证。
+
+## 独立页面的崩溃样本（2026-10-01）
+
+[崩溃测试页](../../app/src/main/java/com/shanshui/performance/TestCrashActivity.kt) 调用 [CrashTestCases](../../app/src/main/java/com/shanshui/performance/CrashTestCases.kt) 制造五类真实未捕获 JVM 异常。前三类和状态异常由主线程触发，外部响应异常由命名后台线程触发；不自行捕获或替换 SDK 默认异常处理器，不裁剪异常堆栈，不增加事件字段。后两项人工模拟输入不写入错误消息或日志，输入的真实取值需要人工另行记录；完整堆栈仍能解释失败分支，但不能据此确定实际输入与上游业务原因。操作见 [示例应用](10-示例应用与调试路径.md)。

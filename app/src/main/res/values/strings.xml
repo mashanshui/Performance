@@ -11,4 +11,20 @@
     <string name="memory_leak_test_normal_status">已选择正常销毁：Activity 不会被测试持有</string>
     <string name="memory_leak_test_leak_status">已选择泄漏销毁：返回主页面后等待检测器重检</string>
     <string name="memory_leak_test_cleared_status">已清理静态泄漏引用</string>
+    <string name="crash_cases_entry">崩溃测试页面</string>
+    <string name="crash_cases_title">JVM 崩溃测试</string>
+    <string name="crash_cases_description">仅用于测试。前 3 项立即崩溃；后 2 项先输入测试数据。每次崩溃后重新启动应用。请另行记录触发输入、时间与构建版本，勿填写真实敏感数据。</string>
+    <string name="crash_cases_explicit">1. 主动抛出异常</string>
+    <string name="crash_cases_null">2. 空指针异常</string>
+    <string name="crash_cases_bounds">3. 数组越界异常</string>
+    <string name="crash_cases_state_description">4. 运行时状态：ready 正常返回，其余状态触发同一异常。堆栈不包含本次输入，供分析证据不足的情况。</string>
+    <string name="crash_cases_state_hint">输入模拟状态，如 expired 或 missing</string>
+    <string name="crash_cases_state_label">模拟运行时状态</string>
+    <string name="crash_cases_state">4. 触发状态异常</string>
+    <string name="crash_cases_async_description">5. 异步外部输入：accepted 正常返回，其余输入在后台线程崩溃。输入是人工模拟响应，不会发起网络请求；堆栈不携带响应内容或上游来源。</string>
+    <string name="crash_cases_async_hint">输入模拟响应，如 malformed 或 denied</string>
+    <string name="crash_cases_async_label">模拟外部响应</string>
+    <string name="crash_cases_async">5. 触发异步异常</string>
+    <string name="crash_cases_close">返回主页面</string>
+    <string name="crash_cases_input_required">请先输入并另行记录测试数据</string>
 </resources>

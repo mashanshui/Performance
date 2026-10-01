@@ -45,4 +45,12 @@
         android:text="@string/crash_test_entry"
         app:layout_constraintStart_toEndOf="@id/memoryLeakTestButton"
         app:layout_constraintTop_toTopOf="@id/memoryLeakTestButton" />
+    <Button
+        android:id="@+id/crashCasesPageButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="24dp"
+        android:text="@string/crash_cases_entry"
+        app:layout_constraintStart_toStartOf="@id/memoryLeakTestButton"
+        app:layout_constraintTop_toBottomOf="@id/memoryLeakTestButton" />
 </androidx.constraintlayout.widget.ConstraintLayout>

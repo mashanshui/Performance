@@ -18,7 +18,7 @@ class MainActivity : AppCompatActivity() {
     private var timingActive = false
     private val looperMonitor by lazy { LooperMonitor.sMainMonitor }
 
-    /** 创建主页面并绑定卡顿测试、FPS 测试两个入口；执行线程为主线程。 */
+    /** 创建主页面并绑定性能测试入口；执行线程为主线程。 */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -48,6 +48,10 @@ class MainActivity : AppCompatActivity() {
         // Crash 测试必须保留为未捕获异常，才能进入 SDK 的默认异常处理器。
         findViewById<Button>(R.id.crashTestButton).setOnClickListener {
             triggerCrashUploadTest()
+        }
+        // 独立页面集中提供五类崩溃，原有直接崩溃按钮继续保留。
+        findViewById<Button>(R.id.crashCasesPageButton).setOnClickListener {
+            startActivity(Intent(this, TestCrashActivity::class.java))
         }
         looperMonitor.register(messageListener)
     }

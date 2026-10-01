@@ -6,6 +6,13 @@ import org.junit.Test
 
 /** 核验异常类型及运行时输入缺失边界，异常在 JVM 测试中由断言捕获。 */
 class CrashTestCasesTest {
+    /** 外层业务异常必须保留底层解析异常，避免只看到包装层。 */
+    @Test fun wrappedNumberPreservesCause() {
+        // 对应设备按钮的同一固定损坏数据路径。
+        val error = assertThrows(IllegalStateException::class.java) { CrashTestCases.wrappedNumber() }
+        assertEquals("Unable to load item count", error.message)
+        assertEquals(NumberFormatException::class.java, error.cause!!.javaClass)
+    }
     /** 主动抛出的异常类型和标识稳定。 */
     @Test fun explicitFailure() {
         // 仅在测试中捕获，不改变设备页面的未捕获异常链路。

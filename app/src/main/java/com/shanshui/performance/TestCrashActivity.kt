@@ -44,6 +44,10 @@ class TestCrashActivity : AppCompatActivity() {
             Thread({ CrashTestCases.externalResponse(response) }, "crash-test-external").start()
         }
         findViewById<Button>(R.id.closeCrashPageButton).setOnClickListener { finish() }
+        // cause 链用于区分外层业务错误与底层数字解析失败。
+        findViewById<Button>(R.id.wrappedCrashButton).setOnClickListener {
+            CrashTestCases.wrappedNumber()
+        }
     }
 
     /** 拒绝空输入；清除首尾空白后作为当前测试的运行时值。 */

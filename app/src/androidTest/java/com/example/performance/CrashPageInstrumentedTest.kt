@@ -41,6 +41,7 @@ class CrashPageInstrumentedTest {
         onView(withId(R.id.boundsCrashButton)).check(matches(isDisplayed()))
         onView(withId(R.id.stateCrashButton)).perform(scrollTo()).check(matches(isDisplayed()))
         onView(withId(R.id.asyncCrashButton)).perform(scrollTo()).check(matches(isDisplayed()))
+        onView(withId(R.id.wrappedCrashButton)).perform(scrollTo()).check(matches(isDisplayed()))
         onView(withId(R.id.closeCrashPageButton)).perform(scrollTo(), click())
         onView(withId(R.id.crashCasesPageButton)).check(matches(isDisplayed()))
     }

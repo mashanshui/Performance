@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.crashTestButton).setOnClickListener {
             triggerCrashUploadTest()
         }
-        // 独立页面集中提供五类崩溃，原有直接崩溃按钮继续保留。
+        // 独立页面集中提供多类崩溃，原有直接崩溃按钮继续保留。
         findViewById<Button>(R.id.crashCasesPageButton).setOnClickListener {
             startActivity(Intent(this, TestCrashActivity::class.java))
         }

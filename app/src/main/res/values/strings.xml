@@ -13,7 +13,7 @@
     <string name="memory_leak_test_cleared_status">已清理静态泄漏引用</string>
     <string name="crash_cases_entry">崩溃测试页面</string>
     <string name="crash_cases_title">JVM 崩溃测试</string>
-    <string name="crash_cases_description">仅用于测试。前 3 项立即崩溃；后 2 项先输入测试数据。每次崩溃后重新启动应用。请另行记录触发输入、时间与构建版本，勿填写真实敏感数据。</string>
+    <string name="crash_cases_description">仅用于测试。第 1、2、3、6 项立即崩溃；第 4、5 项先输入测试数据。每次崩溃后重新启动应用。请另行记录触发输入、时间与构建版本，勿填写真实敏感数据。</string>
     <string name="crash_cases_explicit">1. 主动抛出异常</string>
     <string name="crash_cases_null">2. 空指针异常</string>
     <string name="crash_cases_bounds">3. 数组越界异常</string>
@@ -27,4 +27,5 @@
     <string name="crash_cases_async">5. 触发异步异常</string>
     <string name="crash_cases_close">返回主页面</string>
     <string name="crash_cases_input_required">请先输入并另行记录测试数据</string>
+    <string name="crash_cases_wrapped">6. 数字解析失败（包装 cause）</string>
 </resources>

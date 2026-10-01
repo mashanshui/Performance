@@ -34,6 +34,8 @@
             android:maxLength="256" android:singleLine="true" android:saveEnabled="false" />
         <Button android:id="@+id/asyncCrashButton" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/crash_cases_async" />
+        <Button android:id="@+id/wrappedCrashButton" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/crash_cases_wrapped" />
         <Button android:id="@+id/closeCrashPageButton" android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="@string/crash_cases_close" />
     </LinearLayout>

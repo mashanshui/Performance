@@ -34,4 +34,15 @@ internal object CrashTestCases {
             throw IllegalArgumentException("Crash test: external response rejected")
         }
     }
+
+    /** 模拟持久化计数字段损坏；保留原始解析异常作为 cause，验证异常链定位。 */
+    fun wrappedNumber(): Int {
+        // 固定的无效测试数据，不读取真实用户文件或服务响应。
+        val storedCount = "not-a-number"
+        try {
+            return storedCount.toInt()
+        } catch (error: NumberFormatException) {
+            throw IllegalStateException("Unable to load item count", error)
+        }
+    }
 }

@@ -370,3 +370,9 @@ Activity 暂停会停止该页面采集，但不会关闭 Reporter 的周期快�
 - [FpsEventStoreTest](../../performance-metrics/src/test/java/com/shanshui/performance/fps/FpsEventStoreTest.kt)：同桶合并与恢复；[FpsUploaderTest](../../performance-metrics/src/test/java/com/shanshui/performance/fps/FpsUploaderTest.kt)：duplicate 确认与计数不匹配重试。
 
 本轮未执行真实 FrameMetrics、异常退出丢失窗口或设备刷新率切换验证；页面仪器测试仅证明入口和控件的断言范围，不证明 FPS 数值准确。
+
+## 2026-10-01 Release 持久化恢复修正
+
+R8 full mode 下，FPS 当前快照的 `records` 泛型曾被移除，Gson 将元素恢复为 LinkedTreeMap，导致 SDK 初始化 ClassCastException。metrics 消费者规则现明确保留 `FpsCurrentFile`、`FpsAggregateRecord`、`FpsQueuedRecord` 的类、字段与泛型信息，不对整个模块关闭混淆。
+
+Gson 可绕过 Kotlin 非空约束。恢复时现校验列表、记录及必需字符串字段；旧混淆字段、缺失字段或空记录移入既有 dead-letter，保留原文件，避免阻断新会话。不推测旧混淆字段的语义，不改事件协议。有效快照的恢复路径保持原有封存语义。验证结果见 [构建测试](11-构建测试与本地发布.md)。

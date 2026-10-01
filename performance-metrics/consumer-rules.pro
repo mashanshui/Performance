@@ -1,5 +1,12 @@
 # FPS 与内存 DTO/队列字段属于本地和服务端协议，保留字段名和泛型信息。
 -keepattributes Signature,*Annotation*,SourceFile,LineNumberTable
+
+# Gson 通过反射读取本地 FPS 快照与队列。R8 full mode 需要保留 DTO 本身，
+# 才能保留 records 的 List<FpsAggregateRecord> 签名及稳定磁盘字段名。
+-keep class com.shanshui.performance.fps.FpsCurrentFile { *; }
+-keep class com.shanshui.performance.fps.FpsAggregateRecord { *; }
+-keep class com.shanshui.performance.fps.FpsQueuedRecord { *; }
+
 -keepclassmembers class com.shanshui.performance.network.** {
     <fields>;
 }

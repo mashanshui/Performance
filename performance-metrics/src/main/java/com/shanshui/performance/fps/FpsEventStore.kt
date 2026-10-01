@@ -272,7 +272,19 @@ internal class FpsEventStore(
             return
         }
         val current = runCatching {
-            gson.fromJson(currentFile.readText(StandardCharsets.UTF_8), FpsCurrentFile::class.java)
+            // Gson 可以绕过 Kotlin 非空构造约束；旧混淆字段或缺失字段必须按损坏快照隔离。
+            val snapshot = gson.fromJson(
+                currentFile.readText(StandardCharsets.UTF_8), FpsCurrentFile::class.java,
+            ) ?: return@runCatching null
+            requireNotNull(snapshot.sessionId)
+            requireNotNull(snapshot.records).forEach { aggregate ->
+                requireNotNull(aggregate)
+                require(!aggregate.eventId.isNullOrBlank())
+                requireNotNull(aggregate.sessionId)
+                requireNotNull(aggregate.scene)
+                requireNotNull(aggregate.algorithmVersion)
+            }
+            snapshot
         }.getOrNull()
         if (current == null) {
             moveMalformedCurrent()

@@ -105,6 +105,36 @@ class FpsEventStoreTest {
         }
     }
 
+    /** 旧混淆字段、缺失字段及空记录必须隔离原文件，不能阻断新会话或伪造事件。 */
+    @Test
+    fun isolatesInvalidSnapshotStructureWithoutLosingOriginalFile() {
+        // 覆盖旧字段名、缺失列表、空列表元素和缺失记录必填字段。
+        val invalidSnapshots = listOf(
+            """{"a":"old-session","b":[{"a":"old-event"}]}""",
+            """{"sessionId":"old-session"}""",
+            """{"sessionId":"old-session","records":[null]}""",
+            """{"sessionId":"old-session","records":[{}]}""",
+            """{"sessionId":"old-session","records":[{"eventId":"old-event"}]}""",
+        )
+        invalidSnapshots.forEach { original ->
+            // 每种无效结构独立使用临时存储，防止前一轮隔离结果掩盖错误。
+            val root = Files.createTempDirectory("fps-invalid-structure")
+            try {
+                root.resolve("current.json").toFile().writeText(original)
+                val store = createStore(root)
+                store.startSession(testIdentity)
+                assertEquals(0, store.count())
+                val isolated = root.resolve("dead-letter").toFile().listFiles()!!.single()
+                assertEquals(original, isolated.readText())
+                // 新会话仍可正常持久化并封存有效记录。
+                store.merge(summary("recovered", 60.0, 1_000L))
+                assertEquals(1, store.sealCurrent())
+            } finally {
+                deleteRecursively(root)
+            }
+        }
+    }
+
     /** 创建使用固定事件载荷的测试存储。 */
     private fun createStore(root: Path): FpsEventStore {
         return FpsEventStore(

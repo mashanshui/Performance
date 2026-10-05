@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "apm-agent-worker"
+version = "0.3.0"
+description = "单个 JVM Crash 的当前工作区分析与有限修复工具"
+requires-python = ">=3.12,<3.13"
+dependencies = ["httpx==0.28.1", "pydantic==2.12.5"]
+
+[project.scripts]
+apm-analysis = "apm_agent_worker.cli:main"
+
+[dependency-groups]
+dev = ["pytest==8.4.2"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/apm_agent_worker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

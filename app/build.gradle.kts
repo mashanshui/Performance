@@ -119,5 +119,6 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     // Release 仪器测试直接调用 Kotlin 标准库扩展，确保测试 APK 携带其运行时实现。
     androidTestImplementation(kotlin("stdlib"))
-    implementation("io.github.cymchad:BaseRecyclerViewAdapterHelper4:4.3.2")
+    // 4.3.2 使用 Kotlin 2.2 元数据；示例依赖同步到可被 Kotlin 1.9 编译的版本。
+    implementation("io.github.cymchad:BaseRecyclerViewAdapterHelper4:4.1.4")
 }

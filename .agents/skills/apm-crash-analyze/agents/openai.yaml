@@ -1,0 +1,4 @@
+interface:
+  display_name: "APM 当前代码崩溃分析"
+  short_description: "宿主分析当前工作区，明确授权后有限修复，工具核验并回传实际结果"
+  default_prompt: "使用 $apm-crash-analyze 分析我提供的已有任务 ID；仅在我明确要求时修复。"

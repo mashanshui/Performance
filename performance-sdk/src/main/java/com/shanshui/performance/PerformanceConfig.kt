@@ -87,7 +87,9 @@ data class ServiceConfig(
     /** 服务配置默认值。 */
     companion object {
         /** 默认事件服务地址。 */
-        const val DEFAULT_BASE_URL = "http://124.221.252.121:80"
+//        const val DEFAULT_BASE_URL = "http://124.221.252.121:80"
+//        const val DEFAULT_BASE_URL = "http://192.168.0.151:8080"
+        const val DEFAULT_BASE_URL = "http://127.0.0.1:8080"
         /** 默认环境。 */
         const val DEFAULT_ENVIRONMENT = "debug"
         /** 默认渠道。 */

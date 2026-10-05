@@ -1,6 +1,6 @@
 plugins {
     id("com.android.application") version "8.13.2" apply false
-    id("org.jetbrains.kotlin.android") version "2.2.10" apply false
+    id("org.jetbrains.kotlin.android") version "1.9.25" apply false
 }
 
 /** 统一独立消费者的 Android SDK、字节码和 Release 混淆边界。 */
@@ -49,8 +49,9 @@ subprojects {
         }
     }
     plugins.withId("org.jetbrains.kotlin.android") {
-        extensions.configure<org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension> {
-            compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+        tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+            // 使用 Kotlin 1.9 的配置入口，验证发布制品能够被同版本消费者编译。
+            kotlinOptions.jvmTarget = "11"
         }
     }
 }

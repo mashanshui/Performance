@@ -18,7 +18,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.retrofit.converter.gson)
     implementation(libs.okhttp)
-    implementation("io.github.mashanshui:rhea-inhouse:1.0.3") {
+    implementation(libs.rhea.inhouse) {
         isChanging = true
     }
     testImplementation(libs.junit)

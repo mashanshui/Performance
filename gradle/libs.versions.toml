@@ -1,19 +1,21 @@
 [versions]
 agp = "8.13.2"
-kotlin = "2.2.10"
+# SDK 发布与独立消费者统一使用 Kotlin 1.9；相关依赖不能重新拉入 Kotlin 2.x。
+kotlin = "1.9.25"
 coreKtx = "1.10.1"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
 appcompat = "1.7.1"
 material = "1.10.0"
-activity = "1.12.0"
+activity = "1.9.3"
 constraintlayout = "2.1.4"
-lifecycleCommonJvm = "2.10.0"
-retrofit = "3.0.0"
+lifecycleCommonJvm = "2.8.7"
+retrofit = "2.11.0"
 okhttp = "4.12.0"
-kotlinxCoroutines = "1.10.2"
-koomJavaLeak = "2.2.3"
+kotlinxCoroutines = "1.8.1"
+koomJavaLeak = "2.2.4"
+rheaInhouse = "1.0.3"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -31,7 +33,8 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhtt
 okhttp-logging-interceptor = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
-koom-java-leak = { group = "com.kuaishou.koom", name = "koom-java-leak", version.ref = "koomJavaLeak" }
+koom-java-leak = { group = "io.github.mashanshui", name = "koom-java-leak", version.ref = "koomJavaLeak" }
+rhea-inhouse = { group = "io.github.mashanshui", name = "rhea-inhouse", version.ref = "rheaInhouse" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

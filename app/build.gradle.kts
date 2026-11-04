@@ -54,7 +54,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.performance"
+        applicationId = "com.shanshui.performance"
         minSdk = 23
         targetSdk = 36
         versionCode = performanceVersionCode

@@ -26,7 +26,7 @@ class CrashEventFactoryTest {
         )
         root.stackTrace = Array(220) { index ->
             StackTraceElement(
-                "com.example.performance.Screen$index",
+                "com.shanshui.performance.Screen$index",
                 "render",
                 "Screen.kt",
                 index,
@@ -38,7 +38,7 @@ class CrashEventFactoryTest {
 
         assertEquals("crash", event.eventType)
         assertEquals(2, event.schemaVersion)
-        assertEquals("com.example.performance", event.packageName)
+        assertEquals("com.shanshui.performance", event.packageName)
         assertEquals(1_726_000_000_000, event.occurredAt)
         assertEquals("wifi", event.networkType)
         assertNotNull(crash)
@@ -78,11 +78,11 @@ class CrashEventFactoryTest {
 
     private fun testConfig(): CrashReporterConfig {
         return CrashReporterConfig(
-            packageName = "com.example.performance",
+            packageName = "com.shanshui.performance",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",
-            applicationPackage = "com.example.performance",
+            applicationPackage = "com.shanshui.performance",
         )
     }
 

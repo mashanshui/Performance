@@ -8,12 +8,12 @@
     tools:context=".MainActivity">
 
     <Button
-        android:id="@+id/button"
+        android:id="@+id/jankTestButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="87dp"
         android:layout_marginTop="44dp"
-        android:text="卡顿测试"
+        android:text="@string/jank_test_entry"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -24,7 +24,7 @@
         android:layout_marginStart="24dp"
         android:layout_marginTop="44dp"
         android:text="FPS 测试"
-        app:layout_constraintStart_toEndOf="@id/button"
+        app:layout_constraintStart_toEndOf="@id/jankTestButton"
         app:layout_constraintTop_toTopOf="parent" />
 
     <Button
@@ -35,16 +35,8 @@
         android:layout_marginTop="24dp"
         android:text="@string/memory_leak_test_entry"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/button" />
+        app:layout_constraintTop_toBottomOf="@id/jankTestButton" />
 
-    <Button
-        android:id="@+id/crashTestButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="24dp"
-        android:text="@string/crash_test_entry"
-        app:layout_constraintStart_toEndOf="@id/memoryLeakTestButton"
-        app:layout_constraintTop_toTopOf="@id/memoryLeakTestButton" />
     <Button
         android:id="@+id/crashCasesPageButton"
         android:layout_width="wrap_content"

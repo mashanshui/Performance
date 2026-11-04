@@ -41,7 +41,7 @@ subprojects {
     /** 统一新模块发布坐标，允许命令行使用 performance.version 做本轮唯一版本验收。 */
     if (name.startsWith("performance-")) plugins.withId("maven-publish") {
         val performanceGroupId = providers.gradleProperty("performance.groupId")
-            .orElse("com.example.nativelib")
+            .orElse("com.shanshui.nativelib")
         val performanceVersion = providers.gradleProperty("performance.version")
             .orElse("1.0.0")
         group = performanceGroupId.get()

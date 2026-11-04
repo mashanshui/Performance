@@ -1,10 +1,10 @@
 # 模块化独立消费者验证
 
-该目录不参与主工程构建，用于验证八个发布坐标能够被外部 Android 工程消费。三个消费者分别覆盖仅 Crash、仅 Metrics，以及全量 SDK 加 Native Tools；依赖只写 `com.example.nativelib:performance-*` 坐标，不引用主工程源码。
+该目录不参与主工程构建，用于验证八个发布坐标能够被外部 Android 工程消费。三个消费者分别覆盖仅 Crash、仅 Metrics，以及全量 SDK 加 Native Tools；依赖只写 `com.shanshui.nativelib:performance-*` 坐标，不引用主工程源码。
 
 ## 执行方式
 
-在仓库根目录执行：
+在仓库根目录先执行 `.\gradlew.bat publishToMavenLocal`，将本次新坐标制品写入验证仓库，再构建消费者：
 
 ```powershell
 $env:GRADLE_USER_HOME = (Join-Path (Get-Location) '.gradle-local')

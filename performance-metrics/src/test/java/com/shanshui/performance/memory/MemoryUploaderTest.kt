@@ -266,7 +266,7 @@ class MemoryUploaderTest {
             sessionId = "session",
             processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "device",
-            packageName = "com.example.test",
+            packageName = "com.shanshui.test",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build",
@@ -278,7 +278,7 @@ class MemoryUploaderTest {
                 pssBytes = 1L,
                 vssBytes = null,
                 javaHeapUsedBytes = 2L,
-                processName = "com.example.test",
+                processName = "com.shanshui.test",
                 foreground = true,
             ),
         )

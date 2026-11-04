@@ -14,7 +14,7 @@
 | `MessageCollect` | start / getHistoryMessageQueue / destroy | 合并短消息、记录长消息与空闲间隔，读取时追加当前和 pending 消息 |
 | `MessageTimeoutMonitor` | INSTANCE 加显式监听注册；destroy | 协程检查执行中消息是否达到 5 秒，输出主线程堆栈 |
 
-`App` 触发 `LooperMonitor.sMainMonitor` 创建；`MainActivity` 注册卡顿示例监听。当前应用没有自动调用 `MessageCollect.start` 或注册 `MessageTimeoutMonitor`，统一 SDK 也不管理这些监听。
+`App` 触发 `LooperMonitor.sMainMonitor` 创建；`TestJankActivity` 在 `onResume` 注册卡顿示例监听，首页不注册。当前应用没有自动调用 `MessageCollect.start` 或注册 `MessageTimeoutMonitor`，统一 SDK 也不管理这些监听。
 
 ## Looper 回调机制
 
@@ -72,7 +72,7 @@ destroy → 取消协程作用域
 
 Jank 演示在消息结束后计算精确消息区间并导出；超时监控在消息仍执行时抓取当下堆栈。两条路径各自存在，当前没有自动融合。消息历史是进程内诊断信息，尚未进入 ZIP manifest 或服务端事件。
 
-示例 MainActivity 持有 listener，在 onDestroy 注销并关闭尚未结束的 Rhea timing；每条正常消息结束都会关闭计时，仅超过 100ms 时输出诊断并导出；Printer 恢复丢失结束边界后，下次开始会先收尾旧会话。MessageCollect 的聚合历史与监控器逐条历史独立存储，不自动启动或相互替代。
+示例 `TestJankActivity` 持有 listener，在 `onPause` 注销、取消待执行计算并关闭尚未结束的 Rhea timing；每条正常消息结束都会关闭计时，仅超过 60ms 时输出诊断并导出；Printer 恢复丢失结束边界后，下次开始会先收尾旧会话。MessageCollect 的聚合历史与监控器逐条历史独立存储，不自动启动或相互替代。
 
 ## 源码与验证依据
 
@@ -81,6 +81,6 @@ Jank 演示在消息结束后计算精确消息区间并导出；超时监控在
 - [LooperPrinterHook](../../performance-metrics/src/main/java/com/shanshui/performance/LooperPrinterHook.kt)：Printer 转发、重入保护、空闲检查及所有权恢复。
 - [MessageCollect](../../performance-metrics/src/main/java/com/shanshui/performance/MessageCollect.kt)
 - [MessageTimeoutMonitor](../../performance-metrics/src/main/java/com/shanshui/performance/MessageTimeoutMonitor.kt)
-- [MainActivity](../../app/src/main/java/com/shanshui/performance/MainActivity.kt)
+- [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)
 
-新增 [LooperMonitorTest](../../performance-metrics/src/test/java/com/shanshui/performance/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/example/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。
+新增 [LooperMonitorTest](../../performance-metrics/src/test/java/com/shanshui/performance/LooperMonitorTest.kt)、[LooperMonitorInstrumentedTest](../../app/src/androidTest/java/com/shanshui/performance/LooperLifecycleInstrumentedTest.kt) 与 [LooperLifecycleInstrumentedTest](../../app/src/androidTest/java/com/shanshui/performance/LooperLifecycleInstrumentedTest.kt)。实际执行结果见 [构建测试](11-构建测试与本地发布.md)；MessageCollect 聚合/pending、超时算法、跨版本反射兼容与系统 ANR 不属于这些用例的证明范围。

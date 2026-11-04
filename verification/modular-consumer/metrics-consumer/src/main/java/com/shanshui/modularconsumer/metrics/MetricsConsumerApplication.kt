@@ -1,4 +1,4 @@
-package com.example.modularconsumer.metrics
+package com.shanshui.modularconsumer.metrics
 
 import android.app.Application
 import com.shanshui.performance.core.PerformanceEventContextFactory

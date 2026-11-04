@@ -10,11 +10,11 @@ class ApplicationMetadataTest {
     @Test
     fun derivesBuildIdFromVersionAndCode() {
         val metadata = ApplicationMetadataResolver.fromValues(
-            packageName = "com.example.performance",
+            packageName = "com.shanshui.performance",
             versionName = "2.4.1",
             versionCode = 17,
         )
-        assertEquals("com.example.performance", metadata.packageName)
+        assertEquals("com.shanshui.performance", metadata.packageName)
         assertEquals("2.4.1", metadata.versionName)
         assertEquals(17, metadata.versionCode)
         assertEquals("2.4.1-17", metadata.defaultBuildId)
@@ -25,7 +25,7 @@ class ApplicationMetadataTest {
     fun rejectsVersionCodeOutsideProtocolRange() {
         assertThrows(IllegalArgumentException::class.java) {
             ApplicationMetadataResolver.fromValues(
-                packageName = "com.example.performance",
+                packageName = "com.shanshui.performance",
                 versionName = "1.0",
                 versionCode = Int.MAX_VALUE.toLong() + 1,
             )

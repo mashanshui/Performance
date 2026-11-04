@@ -18,7 +18,7 @@ class App : Application() {
         runCatching {
             performanceSdk = PerformanceSdk.initialize(
                 application = this,
-                appKey = "apm_ak_UowWFkzFaZcYmP64C761KRR41ySgjuZ6FL9-P5bJ6x8",
+                appKey = "apm_ak_ooEDqzqpMBtbmUAeTiEj7K5zGDUz4p4I5E_Sc__s354",
                 config = PerformanceConfig(
                     service = ServiceConfig(
                         enableNetworkLogging = true,

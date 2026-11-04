@@ -89,7 +89,7 @@ class FpsUploaderTest {
                     sessionId = aggregate.sessionId,
                     processId = aggregate.processId.orEmpty(),
                     anonymousDeviceId = "device",
-                    packageName = "com.example.test",
+                    packageName = "com.shanshui.test",
                     appVersion = "1.0",
                     versionCode = 1,
                     buildId = "build",

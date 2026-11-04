@@ -89,7 +89,7 @@ class LeakComponentBoundaryTest {
                 processId = "00000000-0000-4000-8000-000000000001",
             ),
             anonymousDeviceId = "anonymous-device",
-            applicationMetadata = ApplicationMetadata("com.example.test", "1.0", 1),
+            applicationMetadata = ApplicationMetadata("com.shanshui.test", "1.0", 1),
             buildId = "test-build",
         )
     }

@@ -134,7 +134,7 @@ val config = PerformanceConfig(
         appVersion = "2026.09.0",
         versionCode = 900,
         buildId = "my-product-2026.09.0-900",
-        applicationPackage = "com.example.product",
+        applicationPackage = "com.shanshui.product",
     ),
 )
 ```

@@ -13,7 +13,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** 验证主页面提供崩溃上传测试入口；真正的崩溃由独立设备烟测触发。 */
+/** 验证主页面统一的崩溃测试页面入口；真正的崩溃由独立设备烟测触发。 */
 @RunWith(AndroidJUnit4::class)
 class CrashPageInstrumentedTest {
     /** 为每个用例创建主页面场景。 */
@@ -22,15 +22,16 @@ class CrashPageInstrumentedTest {
 
     /** 验证崩溃测试按钮已显示，避免在通用仪器测试中主动杀死测试进程。 */
     @Test
-    fun crashTestButtonIsDisplayed() {
-        onView(withId(R.id.crashTestButton)).check(matches(isDisplayed()))
+    fun crashPageButtonIsDisplayed() {
+        onView(withId(R.id.crashCasesPageButton)).check(matches(isDisplayed()))
     }
 
-    /** 验证原有按钮文案保持一致。 */
+    /** 验证统一入口使用崩溃测试页面文案。 */
     @Test
-    fun crashTestButtonShowsExpectedText() {
-        onView(withId(R.id.crashTestButton)).check(matches(withText(R.string.crash_test_entry)))
+    fun crashPageButtonShowsExpectedText() {
+        onView(withId(R.id.crashCasesPageButton)).check(matches(withText(R.string.crash_cases_entry)))
     }
+
     /** 导航与全部操作可见性回归，不触发会终止测试进程的崩溃。 */
     @Test
     fun separateCrashPageShowsAllCasesAndCanReturn() {

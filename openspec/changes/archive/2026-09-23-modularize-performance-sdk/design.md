@@ -1,5 +1,7 @@
 ## Context
 
+说明：2026-11-04 统一改写本文的包名与 Maven group 前缀；文中名称不再代表历史原始标识，历史结论不作为本次迁移的验证证据。
+
 动机和范围见 [proposal.md](proposal.md)。本设计依据当前工作区源码，属于待实施方案。
 
 实施前只有 `app` 和 `nativelib` 两个 Gradle 模块；当前实现已按下表方向完成拆分。需要拆开的关键耦合如下：
@@ -104,7 +106,7 @@ Transport 提供共享传输会话及创建服务的必要能力，可以在集�
 
 ### 7. 发布与独立消费者验证
 
-统一发布属性使用 `performance.groupId`、`performance.version`；默认 group 继续采用 `com.example.nativelib`，artifactId 为各模块名，规划默认版本为 `1.0.0`。不继续发布旧 `nativelib` artifact，也不保留旧 `nativelib.*` 属性别名。八个库模块均发布 Release AAR、sources JAR、POM 与 Gradle module metadata，库自身不预混淆，交由宿主 R8 消费模块级规则。
+统一发布属性使用 `performance.groupId`、`performance.version`；默认 group 继续采用 `com.shanshui.nativelib`，artifactId 为各模块名，规划默认版本为 `1.0.0`。不继续发布旧 `nativelib` artifact，也不保留旧 `nativelib.*` 属性别名。八个库模块均发布 Release AAR、sources JAR、POM 与 Gradle module metadata，库自身不预混淆，交由宿主 R8 消费模块级规则。
 
 在 `verification/modular-consumer/` 建立独立 Gradle 构建，不使用 `project(...)`、`includeBuild` 或源码替换本次产物；以 Maven Local 的已发布坐标验证。通过三个独立应用模块分别覆盖仅 Crash、仅 Metrics 和全量 SDK 加 Native 工具，避免使用 App 的全量依赖掩盖精简接入缺失。外部 Rhea/KOOM 仍按项目既有仓库解析，不在本变更升级版本。
 

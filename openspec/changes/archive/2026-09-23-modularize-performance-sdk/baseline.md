@@ -1,5 +1,7 @@
 # 模块拆分实施基线
 
+说明：2026-11-04 统一改写本文的包名与 Maven group 前缀；文中名称不再代表历史原始标识，历史结论不作为本次迁移的验证证据。
+
 记录时间：2026-09-22
 
 ## 工作区边界
@@ -27,7 +29,7 @@
 ## 构建与发布基线
 
 - 现有 `nativelib` 使用 AGP 8.13.2、Kotlin 2.2.10、compileSdk 36、minSdk 21、Java/Kotlin 11，启用 CMake 3.22.1、Prefab 与 `arm64-v8a`。
-- 现有依赖包含 Rhea 1.0.3、KOOM 2.2.3、ShadowHook 2.0.0、Retrofit、OkHttp、协程；旧模块发布坐标默认是 `com.example.nativelib:nativelib:1.0.0`。
+- 现有依赖包含 Rhea 1.0.3、KOOM 2.2.3、ShadowHook 2.0.0、Retrofit、OkHttp、协程；旧模块发布坐标默认是 `com.shanshui.nativelib:nativelib:1.0.0`。
 - 旧 `nativelib` Manifest 声明 `android:usesCleartextTraffic="true"`；示例 App Manifest 也显式声明该策略。
 - 已存在的构建产物中可见 `libnativelib.so`、`libshadowhook.so` 与 `nativelib-debug/release.aar`；这些仅作为实施前快照，不能替代新模块发布验证。
 

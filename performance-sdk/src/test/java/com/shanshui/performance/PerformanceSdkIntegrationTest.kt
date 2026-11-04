@@ -190,7 +190,7 @@ class PerformanceSdkIntegrationTest {
             context = PerformanceEventContext(
                 runtimeIdentity = RuntimeIdentity(TEST_SESSION_ID, TEST_PROCESS_ID),
                 anonymousDeviceId = "anonymous-device",
-                applicationMetadata = ApplicationMetadata("com.example.test", "1.0", 1),
+                applicationMetadata = ApplicationMetadata("com.shanshui.test", "1.0", 1),
                 buildId = metadataConfig.buildId ?: "fallback-build",
                 environment = metadataConfig.environment,
                 channel = metadataConfig.channel,

@@ -1,4 +1,4 @@
-package com.example.modularconsumer.crash
+package com.shanshui.modularconsumer.crash
 
 import android.app.Application
 import com.shanshui.performance.core.PerformanceEventContextFactory

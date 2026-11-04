@@ -142,7 +142,7 @@ class CrashUploaderTest {
             sessionId = "session-1",
             processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "install-1",
-            packageName = "com.example.performance",
+            packageName = "com.shanshui.performance",
             appVersion = "1.0",
             versionCode = 1,
             buildId = "build-1",

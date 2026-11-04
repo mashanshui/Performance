@@ -10,7 +10,7 @@
 
 Crash 链路记录应用启动和 JVM 未处理异常，先持久化事件，再尝试上传，以便进程重启后恢复。由 `PerformanceSdk.initialize → componentFactory.startCrash → CrashReporter.start` 启动。
 
-示例应用主页面的“崩溃上传测试”按钮调用 `MainActivity.triggerCrashUploadTest`，直接抛出未捕获 JVM 异常。该入口仅用于 Debug 设备验证，不代表 native signal、系统 ANR 或非致命异常已经接入。
+示例应用主页面统一通过“崩溃测试页面”进入 `TestCrashActivity`。点击“1. 主动抛出异常”调用 `CrashTestCases.explicitException`，直接抛出未捕获 `IllegalStateException`，覆盖原首页“崩溃上传测试”的采集、落盘与上传链路；首页不再直接触发崩溃。该页面在 Debug、Release 构建中均存在，仅用于受控设备测试，不代表 native signal、系统 ANR 或非致命异常已经接入。
 
 当前载荷为 `crash.kind=jvm`、`fatal=true`。它不覆盖 native signal、系统 ANR 或业务主动上报的非致命异常。
 
@@ -64,7 +64,7 @@ HTTP 错误优先参考错误体 `retryable`，其次采用网络层分类；退
 `processId`，不再发送旧的 `appId`；服务端要求的 JVM Crash 字段和批次响应校验已同步到代码与测试，
 见 [协议说明](09-服务端对接与数据协议.md)。
 
-调试时先通过启动事件验证本地落盘和请求，再点击示例应用主页面的“崩溃上传测试”按钮抛出未捕获异常。不要把被 `runCatching` 吞掉的异常作为未处理崩溃测试。修复后应确认请求为 schema v2、事件含正确 `packageName`、规范 UUID v4 `processId` 且不含 `appId`，并观察服务端返回 HTTP 200 及 `accepted`/`duplicate`。按钮可见性由 `CrashPageInstrumentedTest` 覆盖，真实崩溃、进程重启和服务端接收仍需要独立设备烟测。
+调试时先通过启动事件验证本地落盘和请求，再从主页面进入“崩溃测试页面”，点击“1. 主动抛出异常”。不要把被 `runCatching` 吞掉的异常作为未处理崩溃测试。修复后应确认请求为 schema v2、事件含正确 `packageName`、规范 UUID v4 `processId` 且不含 `appId`，并观察服务端返回 HTTP 200 及 `accepted`/`duplicate`。入口可见性、页面导航、六个操作按钮和返回由 `CrashPageInstrumentedTest` 覆盖，真实崩溃、进程重启和服务端接收仍需要独立设备烟测。
 
 ## 源码与验证依据
 

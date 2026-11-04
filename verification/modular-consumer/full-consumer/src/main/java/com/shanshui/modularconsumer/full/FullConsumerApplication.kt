@@ -1,4 +1,4 @@
-package com.example.modularconsumer.full
+package com.shanshui.modularconsumer.full
 
 import android.app.Application
 import com.shanshui.performance.NativeLib

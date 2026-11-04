@@ -2,7 +2,7 @@ package com.shanshui.performance
 
 /** 受控 JVM 崩溃样本；调用方必须让异常进入 SDK 的默认未捕获异常处理器。 */
 internal object CrashTestCases {
-    /** 制造明确的主动抛出异常，作为已有测试按钮的独立页面版本。 */
+    /** 制造明确的主动抛出异常，用于验证 Crash 采集、落盘与上传链路。 */
     fun explicitException(): Nothing {
         throw IllegalStateException("Crash test: explicit failure")
     }

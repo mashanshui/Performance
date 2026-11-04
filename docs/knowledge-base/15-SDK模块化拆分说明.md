@@ -23,12 +23,14 @@
 本地发布更新、构建兼容范围和独立消费者验收见
 [Kotlin 降级记录](11-构建测试与本地发布.md#2026-10-04-kotlin-兼容基线降级)。
 
-全量接入使用 `com.example.nativelib:performance-sdk:1.0.0`，示例配置和初始化入口见 [SDK 配置指南](16-SDK配置指南.md) 与 [PerformanceSdk](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceSdk.kt)。需要精简依赖时可直接使用 `performance-crash`、`performance-metrics`、`performance-jank` 或 `performance-leak`；网络能力通过 `performance-transport` 传入，原生调用单独依赖 `performance-native-tools`。八个模块统一发布 Release AAR、sources JAR、POM 和 Gradle module metadata，版本由 `performance.version` 统一控制，默认 group 为 `com.example.nativelib`。旧 `nativelib.*` 发布属性和单体坐标已移除。
+发布 group 已统一为 `com.shanshui.nativelib`，主工程和独立消费者需使用同一组新坐标；本次迁移验证见[前缀统一记录](11-构建测试与本地发布.md#2026-11-04-项目标识前缀统一)。
+
+全量接入使用 `com.shanshui.nativelib:performance-sdk:1.0.0`，示例配置和初始化入口见 [SDK 配置指南](16-SDK配置指南.md) 与 [PerformanceSdk](../../performance-sdk/src/main/java/com/shanshui/performance/PerformanceSdk.kt)。需要精简依赖时可直接使用 `performance-crash`、`performance-metrics`、`performance-jank` 或 `performance-leak`；网络能力通过 `performance-transport` 传入，原生调用单独依赖 `performance-native-tools`。八个模块统一发布 Release AAR、sources JAR、POM 和 Gradle module metadata，版本由 `performance.version` 统一控制，默认 group 为 `com.shanshui.nativelib`。旧 `nativelib.*` 发布属性和单体坐标已移除。
 
 在应用模块的 Gradle 依赖中加入：
 
 ```kotlin
-implementation("com.example.nativelib:performance-sdk:1.0.0")
+implementation("com.shanshui.nativelib:performance-sdk:1.0.0")
 ```
 
 然后在 `Application.onCreate()` 中初始化：

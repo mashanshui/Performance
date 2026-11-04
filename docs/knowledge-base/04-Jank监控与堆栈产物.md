@@ -10,7 +10,7 @@
 
 本仓库负责接入 Rhea、构造演示卡顿事件、把导出的 ZIP 纳入持久队列并上传。实际采样、二进制编码、ZIP 生成和产物存储由外部 `rhea-inhouse` 负责，本仓库通过 `JankTraceAdapter` 调用。
 
-`PerformanceSdk.initialize` 初始化 Rhea 与 Reporter，不自动替应用注册示例中的 100ms 消息检测器。该检测器目前位于 `MainActivity.onCreate`。
+`PerformanceSdk.initialize` 初始化 Rhea 与 Reporter，不自动替应用注册示例中的 60ms 消息检测器。首页“卡顿测试”进入 [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)，该页在 `onResume` 注册检测器，`onPause` 注销。
 
 ## 演示触发链
 
@@ -19,7 +19,7 @@ LooperMonitor.onMessageBegin
   → 使用监控器提供的 beginNs，开启 Rhea timing
 LooperMonitor.onMessageEnd
   → 每条消息关闭 Rhea timing
-  → 使用监控器提供的 beginNs/endNs，消息耗时 > 100ms 时继续
+  → 使用监控器提供的 beginNs/endNs，消息耗时 > 60ms 时继续
   → RheaTrace3.captureStackTrace(false)
   → 构造 JankEvent
   → PerformanceSdk.current()?.exportAndEnqueue
@@ -34,7 +34,7 @@ LooperMonitor.onMessageEnd
 Rhea 时把同一进程级 UUID v4 `processId` 写入配置，Rhea extra、v3 manifest 和采样证据保持一致。
 消息结束时调用抓栈，不足以证明整个消息区间具有完整采样，更不能据此推导方法精确耗时。
 
-监听器由 MainActivity 持有，在 onDestroy 注销；若销毁时仍有计时会话则主动关闭，避免短消息和 Activity 重建留下会话。
+监听器由 `TestJankActivity` 持有，仅前台页面注册；`onPause` 注销监听、取消尚未执行的测试任务，并关闭未结束的计时会话。首页不再注册该监听。测试计算沿用原先的 100000 次 `ThreadTest` 调用，事件场景为 `jank_test`，页面完成提示仅代表计算已执行，不代表导出或上传成功。
 
 ## 导出、入队和确认的区别
 
@@ -79,7 +79,7 @@ flowchart LR
 
 观察 `jank export request submitted`、`jank export completed` 和 `jank artifact: eventId=... http=... code=... outcome=...`，按同一 eventId 关联。Rhea 回调不自动切主线程。
 
-- [MainActivity](../../app/src/main/java/com/shanshui/performance/MainActivity.kt)：消息边界、阈值与事件构造。
+- [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)：测试计算、消息边界、阈值与事件构造；[页面测试](../../app/src/androidTest/java/com/shanshui/performance/JankPageInstrumentedTest.kt)覆盖导航、计算完成和返回。
 - [JankTraceAdapter](../../performance-jank/src/main/java/com/shanshui/performance/jank/JankTraceAdapter.kt)：外部依赖边界。
 - [RuntimeIdentity](../../performance-core/src/main/java/com/shanshui/performance/identity/RuntimeIdentity.kt)：进程级身份来源。
 - [JankArtifactReporter](../../performance-jank/src/main/java/com/shanshui/performance/jank/JankArtifactReporter.kt)：初始化、enqueueArtifact、调度。

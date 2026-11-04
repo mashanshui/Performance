@@ -1,14 +1,63 @@
+import com.android.build.api.artifact.ScopedArtifact
 import com.android.build.api.dsl.LibraryExtension
+import com.android.build.api.variant.LibraryAndroidComponentsExtension
+import com.android.build.api.variant.ScopedArtifacts
 import org.gradle.api.JavaVersion
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.kotlin.dsl.configure
+import java.util.zip.ZipFile
 
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.android.library) apply false
+}
+
+/** 按模块实际字节码生成精确保留规则，避免共用包名的 App 代码也被整包保留。 */
+@CacheableTask
+abstract class GenerateSdkKeepRules : DefaultTask() {
+    @get:Classpath
+    abstract val classJars: ListProperty<RegularFile>
+
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val classDirectories: ListProperty<Directory>
+
+    @get:Input
+    abstract val moduleName: Property<String>
+
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
+
+    @TaskAction
+    fun generate() {
+        val classNames = sortedSetOf<String>()
+        fun collect(path: String) {
+            if (path.endsWith(".class") && !path.startsWith("META-INF/")) {
+                classNames.add(path.removeSuffix(".class").replace('/', '.'))
+            }
+        }
+        classJars.get().forEach { jar ->
+            ZipFile(jar.asFile).use { zip ->
+                zip.entries().asSequence().filterNot { it.isDirectory }.forEach { collect(it.name) }
+            }
+        }
+        classDirectories.get().forEach { directory ->
+            directory.asFile.walkTopDown().filter { it.isFile }.forEach {
+                collect(it.relativeTo(directory.asFile).invariantSeparatorsPath)
+            }
+        }
+        check(classNames.isNotEmpty()) { "${moduleName.get()} 未找到 SDK 字节码，不能生成空保留规则" }
+        val rules = outputFile.get().asFile
+        rules.parentFile.mkdirs()
+        rules.writeText(buildString {
+            appendLine("# 自动生成：保留本 SDK 模块的全部类及成员，禁止混淆、删除和优化。")
+            classNames.forEach { appendLine("-keep class $it { *; }") }
+            appendLine("-keepattributes Signature,*Annotation*,InnerClasses,EnclosingMethod,SourceFile,LineNumberTable")
+        })
+    }
 }
 
 /** 为所有 Android Library 子项目集中设置 SDK、字节码和发布约定。 */
@@ -25,15 +74,43 @@ subprojects {
                 sourceCompatibility = JavaVersion.VERSION_11
                 targetCompatibility = JavaVersion.VERSION_11
             }
-            buildTypes {
-                release {
-                    isMinifyEnabled = false
-                }
+            buildTypes.configureEach {
+                // SDK 的所有构建类型均输出原始类名；宿主仍可独立开启 R8。
+                isMinifyEnabled = false
+                consumerProguardFiles(layout.buildDirectory.file("generated/sdk-keep/$name/consumer-rules.pro"))
             }
             publishing {
                 singleVariant("release") {
                     withSourcesJar()
                 }
+            }
+        }
+        extensions.configure<LibraryAndroidComponentsExtension> {
+            finalizeDsl {
+                // 当前仓库没有产品风味；若未来引入，必须同步改为按完整变体注册消费者规则。
+                check(it.productFlavors.isEmpty()) { "SDK 保留规则暂不支持产品风味，请同步调整变体规则路径" }
+            }
+            onVariants(selector().all()) { variant ->
+                val variantName = variant.name.replaceFirstChar { it.uppercaseChar() }
+                val generateRules = tasks.register<GenerateSdkKeepRules>(
+                    "generate${variantName}SdkKeepRules",
+                ) {
+                    moduleName.set(project.name)
+                    outputFile.set(layout.buildDirectory.file("generated/sdk-keep/${variant.name}/consumer-rules.pro"))
+                }
+                // 仅扫描本模块产物，既不保留 App，也不扩大第三方依赖的保留范围。
+                variant.artifacts.forScope(ScopedArtifacts.Scope.PROJECT).use(generateRules).toGet(
+                    ScopedArtifact.CLASSES,
+                    GenerateSdkKeepRules::classJars,
+                    GenerateSdkKeepRules::classDirectories,
+                )
+                // AGP 8.13 的 DSL 会把消费者规则转为 File，需显式连接生成任务。
+                // export 供 project 依赖使用，merge 供 AAR 打包使用，两条路径均必须先生成规则。
+                tasks.matching {
+                    it.name == "export${variantName}ConsumerProguardFiles" ||
+                        it.name == "merge${variantName}ConsumerProguardFiles" ||
+                        (it.name.contains(variantName) && it.name.contains("lint", ignoreCase = true))
+                }.configureEach { dependsOn(generateRules) }
             }
         }
     }

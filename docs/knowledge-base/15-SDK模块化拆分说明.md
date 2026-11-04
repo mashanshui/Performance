@@ -47,6 +47,11 @@ val sdk = PerformanceSdk.initialize(
 
 ## 迁移边界
 
+各 SDK 模块在自身构建及宿主 R8 打包时均完整保留自身类及成员。根构建按每个模块实际字节码生成
+精确规则，并通过各 AAR 根目录的 `proguard.txt` 传递；按需只接入单个模块也自动生效。
+该策略不依赖聚合层的整包 keep，因此允许示例 App 保持混淆。实现及验证边界见
+[App Release 签名构建](11-构建测试与本地发布.md#app-release-签名构建)。
+
 旧 `PerformanceConfig`、`NativeServiceConfig`、全能 `PerformanceComponentFactory` 和旧 `:nativelib` 坐标不再提供兼容转发。请将配置改为 `performance-sdk` 的 `PerformanceConfig`，FPS 配置位于顶层 `fps` 字段；仅接入某项能力时使用对应模块的公开组件和配置。`performance-native-tools` 继续生成 `arm64-v8a` 的 `libnativelib.so`，保留 `NativeLib` 的 JNI 类名、方法名和 `System.loadLibrary("nativelib")` 约定；各 AAR 的 consumer rules 由最终宿主 R8 合并。
 
 ## 当前验证范围

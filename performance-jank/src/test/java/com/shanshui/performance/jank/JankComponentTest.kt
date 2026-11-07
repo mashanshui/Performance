@@ -10,6 +10,7 @@ class JankComponentTest {
     @Test
     fun mapsRheaInitStatesToSdkStates() {
         val mappings = mapOf(
+            RheaTrace3.InitResult.INITIALIZING to JankInitStatus.INITIALIZING,
             RheaTrace3.InitResult.STARTED to JankInitStatus.STARTED,
             RheaTrace3.InitResult.ALREADY_STARTED to JankInitStatus.ALREADY_STARTED,
             RheaTrace3.InitResult.DISABLED to JankInitStatus.DISABLED,

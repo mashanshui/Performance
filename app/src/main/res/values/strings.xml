@@ -2,10 +2,12 @@
     <string name="app_name">Performance</string>
     <string name="jank_test_entry">卡顿测试</string>
     <string name="jank_test_title">主线程卡顿测试</string>
-    <string name="jank_test_description">点击按钮后在主线程执行大量计算，页面可能短暂失去响应。单条消息超过 60ms 时尝试导出卡顿事件；实际耗时取决于设备和构建优化，不保证每次都生成产物。请查看卡顿导出日志和上传结果。</string>
-    <string name="jank_test_trigger">触发卡顿测试</string>
+    <string name="jank_test_description">选择时长后触发主线程卡顿，执行期间页面会暂时失去响应。纯计算不手工抓栈；计算并同步抓栈仅在同步采集开启时有效。结束后自动导出并尝试入队，入队不代表上传成功。</string>
+    <string name="jank_test_trigger">纯计算卡顿</string>
+    <string name="jank_test_sleep">阻塞卡顿</string>
+    <string name="jank_test_sync">计算并同步抓栈</string>
+    <string name="jank_test_copy">复制导出时 ZIP 路径</string>
     <string name="jank_test_ready">等待触发测试</string>
-    <string name="jank_test_completed">计算已完成，请查看卡顿导出日志和上传结果</string>
     <string name="jank_test_close">返回主页面</string>
     <string name="memory_leak_test_entry">内存泄漏测试</string>
     <string name="memory_leak_test_title">Activity 内存泄漏测试</string>

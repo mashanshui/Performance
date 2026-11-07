@@ -1,3 +1,7 @@
+import com.android.build.api.artifact.SingleArtifact
+import com.android.build.api.variant.BuiltArtifactsLoader
+import groovy.json.JsonOutput
+import java.io.File
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -6,6 +10,46 @@ import java.util.UUID
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+}
+
+/** APK 打包后导出同次构建的标识，便于与 APK、R8 mapping 一起归档。 */
+@CacheableTask
+abstract class ExportPerformanceBuildInfo : DefaultTask() {
+    @get:Input
+    abstract val buildId: Property<String>
+
+    @get:InputDirectory
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val apkDirectory: DirectoryProperty
+
+    @get:Internal
+    abstract val builtArtifactsLoader: Property<BuiltArtifactsLoader>
+
+    @get:OutputFile
+    abstract val outputFile: RegularFileProperty
+
+    @TaskAction
+    fun export() {
+        val artifacts = checkNotNull(builtArtifactsLoader.get().load(apkDirectory.get())) {
+            "未找到 APK 产物元数据，无法导出 buildId"
+        }
+        // 复用注入 BuildConfig 的值；版本信息从实际产物读取，兼容一个变体输出多个 APK。
+        val metadata = linkedMapOf(
+            "buildId" to buildId.get(),
+            "applicationId" to artifacts.applicationId,
+            "variantName" to artifacts.variantName,
+            "outputs" to artifacts.elements.map { artifact ->
+                linkedMapOf(
+                    "outputFile" to File(artifact.outputFile).name,
+                    "versionCode" to artifact.versionCode,
+                    "versionName" to artifact.versionName,
+                )
+            },
+        )
+        val destination = outputFile.get().asFile
+        destination.parentFile.mkdirs()
+        destination.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(metadata)) + "\n", Charsets.UTF_8)
+    }
 }
 
 /** 在当前 Gradle 配置阶段生成本次命令共用的编译期 buildId。 */
@@ -101,6 +145,22 @@ android {
     }
     kotlinOptions {
         jvmTarget = "11"
+    }
+}
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val variantTaskName = variant.name.replaceFirstChar { it.uppercaseChar() }
+        val exportBuildInfo = tasks.register<ExportPerformanceBuildInfo>("export${variantTaskName}BuildInfo") {
+            buildId.set(performanceBuildId)
+            builtArtifactsLoader.set(variant.artifacts.getBuiltArtifactsLoader())
+            // 独立输出目录避免改写 AGP 元数据，或让生成文件成为 APK 目录的输入。
+            outputFile.set(layout.buildDirectory.file("outputs/build-info/${variant.name}/build-info.json"))
+        }
+        // 监听最终 APK 产物，assemble 和 Android Studio 的 APK 打包均会触发导出。
+        variant.artifacts.use(exportBuildInfo)
+            .wiredWith(ExportPerformanceBuildInfo::apkDirectory)
+            .toListenTo(SingleArtifact.APK)
     }
 }
 

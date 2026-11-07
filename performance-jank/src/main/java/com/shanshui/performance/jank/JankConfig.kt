@@ -26,6 +26,12 @@ data class JankConfig(
     val enableRusage: Boolean = false,
     /** 是否启用堆栈采集统计。 */
     val enableStackCaptureStats: Boolean = false,
+    /** 同步 Hook 与手工抓栈开关。 */
+    val enableSyncSampling: Boolean = true,
+    /** 后台异步主线程采样开关。 */
+    val enableAsyncSampling: Boolean = false,
+    /** 后台异步采样间隔，单位毫秒。 */
+    val asyncSampleIntervalMillis: Long = 50L,
     /** 映射文件标识。 */
     val mappingId: String = "",
     /** 可选配置覆盖构建标识。 */
@@ -40,6 +46,12 @@ data class JankConfig(
         }
         require(minSampleIntervalMillis in MIN_SAMPLE_INTERVAL_MILLIS..MAX_MIN_SAMPLE_INTERVAL_MILLIS) {
             "minSampleIntervalMillis is outside supported range"
+        }
+        require(asyncSampleIntervalMillis in 10L..60_000L) {
+            "asyncSampleIntervalMillis must be between 10 and 60000"
+        }
+        require(!enableAsyncSampling || asyncSampleIntervalMillis >= minSampleIntervalMillis) {
+            "asyncSampleIntervalMillis must not be below minSampleIntervalMillis"
         }
         require(diskQuotaBytes > 0) { "diskQuotaBytes must be positive" }
         require(artifactTtlMillis > 0) { "artifactTtlMillis must be positive" }
@@ -77,6 +89,9 @@ data class JankConfig(
             .setEnableWakeup(enableWakeup)
             .setEnableRusage(enableRusage)
             .setEnableStackCaptureStats(enableStackCaptureStats)
+            .setEnableSyncSampling(enableSyncSampling)
+            .setEnableAsyncSampling(enableAsyncSampling)
+            .setAsyncSampleIntervalMs(asyncSampleIntervalMillis)
             .setMappingId(mappingId)
             .setAnonymousDeviceId(anonymousDeviceId)
             .setProcessId(processId)

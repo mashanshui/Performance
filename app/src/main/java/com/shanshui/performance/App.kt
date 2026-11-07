@@ -25,13 +25,7 @@ class App : Application() {
                         buildId = BuildConfig.PERFORMANCE_BUILD_ID,
                     ),
                     // 使用 app 模块在本次 Gradle 命令中生成的 buildId。
-                    jank = JankConfig(
-                        enableStackCaptureStats = true,
-                        enableObjectAllocation = true,
-                        enableWakeup = true,
-                        enableRusage = true,
-                        enableJniHook = true,
-                    ),
+                    jank = JANK_TEST_CONFIG,
                     fps = FpsConfig(logLevel = FpsLogLevel.SUMMARY),
                     memoryLeak = MemoryLeakConfig(
                         enabled = true,
@@ -56,4 +50,18 @@ class App : Application() {
         ThreadUtils.setMainThreadMaxPriority()
         LooperMonitor.sMainMonitor
     }
+    companion object {
+        /** 示例固定使用纯异步；对比同步、混合或全关时仅修改这里的参数。 */
+        val JANK_TEST_CONFIG = JankConfig(
+            enableSyncSampling = false,
+            enableAsyncSampling = true,
+            asyncSampleIntervalMillis = 50L,
+            enableStackCaptureStats = true,
+            enableObjectAllocation = true,
+            enableWakeup = true,
+            enableRusage = true,
+            enableJniHook = true,
+        )
+    }
+
 }

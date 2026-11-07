@@ -43,3 +43,8 @@
 
 # 泄漏仪器测试需要进程级强引用真实保留 Activity；R8 不应把仅用于持有对象的测试夹具优化掉。
 -keep class com.shanshui.performance.MemoryLeakTestHolder { *; }
+
+# 保留纯计算负载的方法名与调用边界，便于在异步采样报告中直接确认测试方法。
+-keep class com.shanshui.performance.TestJankActivity$Companion {
+    public void computeWithoutCapture(long);
+}

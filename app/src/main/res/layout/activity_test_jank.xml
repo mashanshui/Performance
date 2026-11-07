@@ -1,47 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/main"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fillViewport="true">
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/jank_test_title"
-            android:textSize="24sp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/jank_test_description" />
-
-        <Button
-            android:id="@+id/triggerJankButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/jank_test_trigger" />
-
-        <TextView
-            android:id="@+id/jankStatusText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:text="@string/jank_test_ready" />
-
-        <Button
-            android:id="@+id/closeJankPageButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/jank_test_close" />
+    android:id="@+id/main" android:layout_width="match_parent"
+    android:layout_height="match_parent" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="20dp">
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="@string/jank_test_title" android:textSize="24sp" />
+        <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="12dp" android:text="@string/jank_test_description" />
+        <TextView android:id="@+id/samplingStatusText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp" />
+        <RadioGroup android:id="@+id/jankDurationGroup" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="horizontal"
+            android:checkedButton="@id/jankDuration1000">
+            <RadioButton android:id="@+id/jankDuration300" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="300 ms" />
+            <RadioButton android:id="@+id/jankDuration1000" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="1000 ms" />
+            <RadioButton android:id="@+id/jankDuration3000" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:text="3000 ms" />
+        </RadioGroup>
+        <Button android:id="@+id/triggerJankButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/jank_test_trigger" />
+        <Button android:id="@+id/triggerSleepJankButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/jank_test_sleep" />
+        <Button android:id="@+id/triggerSyncJankButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/jank_test_sync" />
+        <TextView android:id="@+id/jankStatusText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="12dp"
+            android:textIsSelectable="true" android:text="@string/jank_test_ready" />
+        <Button android:id="@+id/copyJankPathButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:enabled="false"
+            android:text="@string/jank_test_copy" />
+        <Button android:id="@+id/closeJankPageButton" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="@string/jank_test_close" />
     </LinearLayout>
 </ScrollView>

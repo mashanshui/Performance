@@ -35,8 +35,7 @@ internal data class JankArtifactInitResult(
 
 /** 导出结果和是否已写入持久上传队列。 */
 internal data class JankArtifactExportResult(
-    val exportResult: RheaTrace3.ExportResult,
-    val queued: Boolean,
+    val result: JankExportResult,
 )
 
 internal fun interface JankArtifactExportCallback {
@@ -239,7 +238,8 @@ internal class JankArtifactReporter private constructor(
                     )
                 }
                 if (traceResult != RheaTrace3.InitResult.STARTED &&
-                    traceResult != RheaTrace3.InitResult.ALREADY_STARTED
+                    traceResult != RheaTrace3.InitResult.ALREADY_STARTED &&
+                    traceResult != RheaTrace3.InitResult.INITIALIZING
                 ) {
                     return JankArtifactInitResult(
                         traceResult = traceResult,
@@ -278,16 +278,13 @@ internal class JankArtifactReporter private constructor(
                 reporter.traceAdapter.exportJankTrace(
                     event,
                     RheaTrace3.ExportCallback { exportResult ->
-                        val artifact = exportResult.artifact.takeIf {
-                            exportResult.status == RheaTrace3.ExportStatus.SUCCESS ||
-                                exportResult.status == RheaTrace3.ExportStatus.PARTIAL
-                        }
-                        val queued = artifact?.let(reporter::enqueueArtifact) ?: false
+                        // 必须在 enqueueArtifact 调度上传前保存摘要，上传成功可能立刻删除文件。
+                        val summary = summarizeExport(exportResult)
+                        val queued = summary.artifactPath?.let { reporter.enqueueArtifact(File(it)) } ?: false
                         runCatching {
                             callback.onCompleted(
                                 JankArtifactExportResult(
-                                    exportResult = exportResult,
-                                    queued = queued,
+                                    result = summary.copy(queued = queued),
                                 ),
                             )
                         }.onFailure {
@@ -299,6 +296,22 @@ internal class JankArtifactReporter private constructor(
                 Log.w(TAG, "jank export request failed: ${it.javaClass.simpleName}")
                 RheaTrace3.ExportRequestResult.STORAGE_UNAVAILABLE
             }
+        }
+
+        /** 无记录、空文件和失败产物不允许作为成功文件入队。 */
+        internal fun summarizeExport(result: RheaTrace3.ExportResult): JankExportResult {
+            val artifact = result.artifact
+            val bytes = artifact?.takeIf { it.isFile }?.length() ?: 0L
+            val usable = result.isSuccess && result.recordCount > 0 && bytes > 0L
+            val status = when {
+                result.status == RheaTrace3.ExportStatus.FAILED -> JankExportStatus.FAILED
+                result.status == RheaTrace3.ExportStatus.EMPTY || result.recordCount == 0 -> JankExportStatus.EMPTY
+                !usable -> JankExportStatus.FAILED
+                result.status == RheaTrace3.ExportStatus.PARTIAL -> JankExportStatus.PARTIAL
+                else -> JankExportStatus.SUCCESS
+            }
+            return JankExportResult(status, artifact?.absolutePath?.takeIf { usable }, false,
+                result.recordCount, result.overwrittenRecordCount, if (usable) bytes else 0L)
         }
 
         @JvmStatic

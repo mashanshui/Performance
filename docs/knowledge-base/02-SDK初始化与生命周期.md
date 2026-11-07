@@ -75,7 +75,7 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 - 空白 Key 直接抛出 `IllegalArgumentException`。公开配置构造时也可能先抛出 `VALIDATION` 阶段异常。
 - 组件失败通过 `PerformanceInitializationException.stage` 表达；枚举包含 `VALIDATION/METADATA/NETWORK/CRASH/JANK/METRICS/MEMORY_LEAK`。
 - Rhea 的 `UNSUPPORTED_DEVICE`、`NOT_MAIN_PROCESS` 为预期降级；已启用的 Crash 保持运行。
-- `isJankAvailable` 代表 Jank Reporter 就绪；`isFpsAvailable` 代表 FPS Reporter 的开关与进程条件，不代表某个 Window 已开始产生有效帧。
+- `isJankAvailable` 代表 Jank Reporter 就绪；纯异步初始化可返回 `INITIALIZING`，不代表已开始采样，需通过 `JankDiagnostics` 查询两项来源状态；`isFpsAvailable` 代表 FPS Reporter 的开关与进程条件，不代表某个 Window 已开始产生有效帧。
 - `isMemoryAvailable` 代表主进程内存 Reporter 已创建；内存采样不依赖 Jank/FPS 开关，子进程不会创建 Reporter。
 - `isMemoryLeakAvailable` 代表 Activity 泄漏检测器和 KOOM 联动已创建；API 不在 21..36 或当前为子进程时返回 `false`，不会创建这条链路。
 - FPS 不以 `isJankAvailable` 为直接开关：Rhea 平台降级时仍独立检查 FPS 条件；关闭 `jank.enabled` 则同时关闭 FPS。
@@ -117,3 +117,10 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 - [ApplicationMetadataTest](../../performance-core/src/test/java/com/shanshui/performance/ApplicationMetadataTest.kt)、[PerformanceConfigTest](../../performance-sdk/src/test/java/com/shanshui/performance/PerformanceConfigTest.kt)、[Metrics 配置测试](../../performance-sdk/src/test/java/com/shanshui/performance/PerformanceConfigTest.kt)、[RuntimeIdentityTest](../../performance-core/src/test/java/com/shanshui/performance/identity/RuntimeIdentityTest.kt)
 
 以上测试覆盖纯值和配置边界。本轮约定的 Wrapper 命令因 `E:\AndroidSDK\.gradle\wrapper\dists\gradle-8.13-bin\ap7pdhvhnjtc6mxtzz89gkh0c\gradle-8.13-bin.zip.lck` 拒绝访问而无法启动；使用同一 Gradle 8.13 发行版的直接 `gradle.bat` 执行 旧版本验证曾使用 `:nativelib` 任务；这些历史结果不作为本轮模块化通过证据。2026-09-12 又在 Huawei EML-AL00/Android API 29 以示例快速配置验证了真实 KOOM dump、`:heap_analysis` 分析进程初始化、Activity 泄漏路径和 JSON 产物。默认 10 次重检、服务端联调和更广设备/API 兼容性仍未验证。
+
+## 卡顿导出诊断补充
+
+`exportAndEnqueue` 保留 `BUSY`、`DISABLED`、无效/超前时间范围和空窗口等拒绝原因；页面仅对 `BUSY` 重试。
+`JankExportResult` 区分 `SUCCESS/PARTIAL/EMPTY/FAILED`，携带记录数、被覆盖记录数、入队前的 ZIP 大小及路径。
+空记录、空文件及失败不会进入上传队列，`queued` 仅表示入队，原文件可能随后被上传线程删除。
+异步配置、默认值和校验见 [配置指南](16-SDK配置指南.md#33-jankconfig)。

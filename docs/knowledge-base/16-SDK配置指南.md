@@ -144,6 +144,8 @@ val config = PerformanceConfig(
 `versionName-versionCode-UTC时间戳-8位随机十六进制`。`App.onCreate` 将该值传给
 `CrashConfig.buildId`；SDK 会把它作为 Crash、Jank、FPS、内存和内存泄漏 report 的公共
 buildId。同一次 Gradle 命令生成的多个构建变体共用该值，重新执行构建命令会生成新的值。
+APK 打包后可从 `app/build/outputs/build-info/<变体名>/build-info.json` 读取同次构建的
+`buildId`，文件结构和归档方式见 [构建说明](11-构建测试与本地发布.md#打包时导出-buildid)。
 
 ### 3.3 `JankConfig`
 
@@ -161,6 +163,9 @@ buildId。同一次 Gradle 命令生成的多个构建变体共用该值，重�
 | `enableWakeup` | `false` | 是否启用唤醒采样 |
 | `enableRusage` | `false` | 是否启用资源使用统计 |
 | `enableStackCaptureStats` | `false` | 是否启用堆栈采集统计 |
+| `enableSyncSampling` | `true` | 同步 Hook 与手工抓栈开关 |
+| `enableAsyncSampling` | `false` | 后台异步主线程采样开关 |
+| `asyncSampleIntervalMillis` | `50` | 范围 10～60000ms；开启异步时不得小于最小采样间隔 |
 | `mappingId` | 空字符串 | 传给 Rhea 的符号映射 ID，最长 128 个字符；当前服务端按 buildId 查找 mapping |
 | `buildId` | 使用公共派生 buildId | Jank 单独覆盖的构建标识，最长 256 个字符 |
 | `uploadIntervalMillis` | `30000` | ZIP 队列周期上传间隔，必须为正数 |
@@ -180,6 +185,11 @@ val config = PerformanceConfig(
 `mappingId` 默认为空，不会自动猜测符号映射。该字段会传给 Rhea，但所核对的 apm-server
 使用认证应用和 `buildId` 查找 mapping，客户端也不发送 `X-Mapping-Id`；不能把填写 mappingId
 等同于服务端已完成映射选择。当前对接方式见[协议对照](09-服务端对接与数据协议.md)。
+
+异步初始化可能返回 `JankInitStatus.INITIALIZING`，这不是失败。Reporter 可先就绪，来源是否正在采集应查询
+`JankDiagnostics.getSyncSamplingStatus()` 和 `getAsyncSamplingStatus()`，分别返回
+`DISABLED/INITIALIZING/RUNNING/PAUSED/UNSUPPORTED/FAILED/STOPPED`。
+示例固定纯异步参数，SDK 自身默认值不变，操作方式见 [Jank 演示](10-示例应用与调试路径.md#jank-演示)。
 
 ### 3.4 `FpsConfig`
 

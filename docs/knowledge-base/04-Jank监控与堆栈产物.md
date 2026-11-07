@@ -10,40 +10,43 @@
 
 本仓库负责接入 Rhea、构造演示卡顿事件、把导出的 ZIP 纳入持久队列并上传。实际采样、二进制编码、ZIP 生成和产物存储由外部 `rhea-inhouse` 负责，本仓库通过 `JankTraceAdapter` 调用。
 
-`PerformanceSdk.initialize` 初始化 Rhea 与 Reporter，不自动替应用注册示例中的 60ms 消息检测器。首页“卡顿测试”进入 [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)，该页在 `onResume` 注册检测器，`onPause` 注销。
+`PerformanceSdk.initialize` 初始化 Rhea 与 Reporter，不自动注册卡顿检测器。示例首页打开
+[TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)，页面不再注册 Looper listener。
 
 ## 演示触发链
 
 ~~~text
-LooperMonitor.onMessageBegin
-  → 使用监控器提供的 beginNs，开启 Rhea timing
-LooperMonitor.onMessageEnd
-  → 每条消息关闭 Rhea timing
-  → 使用监控器提供的 beginNs/endNs，消息耗时 > 60ms 时继续
-  → RheaTrace3.captureStackTrace(false)
-  → 构造 JankEvent
-  → PerformanceSdk.current()?.exportAndEnqueue
+点击场景 → 显示准备执行 → 延迟 100ms
+  → elapsedRealtimeNanos 记录开始时间
+  → 主线程纯计算 / 休眠 / 分段计算并手工抓栈
+  → 记录结束时间，构造单个 JankEvent（阈值 100ms）
+  → PerformanceSdk.exportAndEnqueue
   → JankTraceAdapter.exportJankTrace
-  → SUCCESS/PARTIAL 产物检查
-  → FileJankUploadQueue.reconcile
+  → 保存非空有效产物摘要，再入持久队列
   → 后台 JankArtifactUploader.flush
 ~~~
 
-`messageStartNs/messageEndNs` 使用同一单调时钟，`occurredAt` 使用墙上时钟毫秒。示例的
-`attemptedSampleCount=1` 是演示值，`sessionId` 从当前 SDK 读取，不再使用固定演示值；SDK 初始化
-Rhea 时把同一进程级 UUID v4 `processId` 写入配置，Rhea extra、v3 manifest 和采样证据保持一致。
-消息结束时调用抓栈，不足以证明整个消息区间具有完整采样，更不能据此推导方法精确耗时。
+示例初始化在 `App.JANK_TEST_CONFIG` 固定为同步关闭、异步开启、50ms；SDK 默认值仍为同步开启、异步关闭。
+异步采集只保存原始栈，导出时去重并批量符号化由外部 Rhea 1.0.4 实现，本项目不重复实现。
+纯异步初始化返回 `INITIALIZING` 时仍建立 Reporter；`isJankAvailable` 仅代表队列可用，实际来源状态通过
+`JankDiagnostics.getSyncSamplingStatus()` / `getAsyncSamplingStatus()` 查询，初始化期间禁用触发。
 
-监听器由 `TestJankActivity` 持有，仅前台页面注册；`onPause` 注销监听、取消尚未执行的测试任务，并关闭未结束的计时会话。首页不再注册该监听。测试计算沿用原先的 100000 次 `ThreadTest` 调用，事件场景为 `jank_test`，页面完成提示仅代表计算已执行，不代表导出或上传成功。
+`messageStartNs/messageEndNs` 使用同一单调时钟，`occurredAt` 使用墙上时钟毫秒，`sessionId` 使用当前 SDK 会话。
+`attemptedSampleCount` 只统计显式手工抓栈调用，纯计算和休眠均为 0，不推算异步样本数量。
+三个场景为 `demo_compute`、`demo_sleep`、`demo_sync_compute`。异步关闭时纯计算不保证有同步样本。
+
+执行与导出期间拦截重复提交。`BUSY` 每 100ms 重试，最多 3 秒，保持事件 ID 不变；其他拒绝不重试。
+离页取消未执行负载、状态轮询和导出重试，已受理导出自然完成；回调使用弱引用及运行编号，销毁后不更新页面。
+页面不改变全局采集开关，也不停止共享采集器。
 
 ## 导出、入队和确认的区别
 
 1. 方法返回的 `ExportRequestResult` 说明导出请求是否被接收。
-2. 回调的 `exportResult` 说明产物生成结果。
+2. 回调的 `JankExportResult` 说明产物生成结果，携带记录数、被覆盖记录数和入队前保存的文件大小。
 3. `queued=true` 说明产物已进入 Reporter 队列。
 4. 后续 HTTP 响应与本地删除才完成上传处理。
 
-Reporter 只接收合法命名且确实存在于 Rhea pending 列表中的文件，使用 canonicalFile 核对身份。`SUCCESS` 和 `PARTIAL` 均可入队；部分产物最终能否被接收，取决于服务端校验。
+Reporter 只接收合法命名且确实存在于 Rhea pending 列表中的文件，使用 canonicalFile 核对身份。`SUCCESS` 和 `PARTIAL` 只有在记录数大于 0、文件存在且非空时才可入队；`EMPTY` 与失败不入队；部分产物最终能否被接收，取决于服务端校验。
 
 ## 文件状态
 
@@ -77,14 +80,16 @@ flowchart LR
 
 ## 调试与验证依据
 
-观察 `jank export request submitted`、`jank export completed` 和 `jank artifact: eventId=... http=... code=... outcome=...`，按同一 eventId 关联。Rhea 回调不自动切主线程。
+页面查看导出状态、记录数、路径及是否入队；上传日志查看 `jank artifact: eventId=... http=... code=... outcome=...`。Rhea 回调不自动切主线程。展示的是导出时路径，文件之后可能被上传清理。
 
-- [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)：测试计算、消息边界、阈值与事件构造；[页面测试](../../app/src/androidTest/java/com/shanshui/performance/JankPageInstrumentedTest.kt)覆盖导航、计算完成和返回。
+- [TestJankActivity](../../app/src/main/java/com/shanshui/performance/TestJankActivity.kt)：测试负载、单调时钟边界、阈值与事件构造；[页面测试](../../app/src/androidTest/java/com/shanshui/performance/JankPageInstrumentedTest.kt)覆盖导航、三种负载、时长选择、重复请求拦截和离页取消。
 - [JankTraceAdapter](../../performance-jank/src/main/java/com/shanshui/performance/jank/JankTraceAdapter.kt)：外部依赖边界。
 - [RuntimeIdentity](../../performance-core/src/main/java/com/shanshui/performance/identity/RuntimeIdentity.kt)：进程级身份来源。
 - [JankArtifactReporter](../../performance-jank/src/main/java/com/shanshui/performance/jank/JankArtifactReporter.kt)：初始化、enqueueArtifact、调度。
 - [FileJankUploadQueue](../../performance-jank/src/main/java/com/shanshui/performance/jank/FileJankUploadQueue.kt)、[JankArtifactUploader](../../performance-jank/src/main/java/com/shanshui/performance/jank/JankArtifactUploader.kt)。
 - [队列测试](../../performance-jank/src/test/java/com/shanshui/performance/jank/FileJankUploadQueueTest.kt)、[上传器测试](../../performance-jank/src/test/java/com/shanshui/performance/jank/JankArtifactUploaderTest.kt)、[网络测试](../../performance-transport/src/test/java/com/shanshui/performance/network/TransportSessionTest.kt)：对账、恢复、确认/重试/永久失败、删除重试、原字节请求。
+
+以下为此前的身份契约验证记录，不替代本次异步页面验证（见 [2026-11-06 构建测试](11-构建测试与本地发布.md#2026-11-06-卡顿采样测试页)）：
 
 上述客户端测试通过替身隔离 Rhea，另有外部 `rhea-inhouse-noop:test` 验证公开 `processId` API 和
 UUID v4 校验；本轮已在 EML-AL00/API 29 运行 Rhea 1.0.3 AndroidTest，生成并由 Processor 解析新 ZIP，

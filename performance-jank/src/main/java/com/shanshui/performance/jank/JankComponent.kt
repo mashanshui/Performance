@@ -11,6 +11,8 @@ import java.io.Closeable
 enum class JankInitStatus {
     /** 本次进程启动并成功初始化。 */
     STARTED,
+    /** 异步采集正在自检，需查询实际来源状态。 */
+    INITIALIZING,
     /** 采集引擎已由其他调用方启动。 */
     ALREADY_STARTED,
     /** 配置关闭。 */
@@ -59,6 +61,16 @@ enum class JankExportRequestStatus {
     ACCEPTED,
     /** 尚未初始化。 */
     NOT_INITIALIZED,
+    /** 采集已关闭。 */
+    DISABLED,
+    /** 时间范围无效。 */
+    INVALID_RANGE,
+    /** 时间范围超前。 */
+    FUTURE_RANGE,
+    /** 窗口无采样记录。 */
+    EMPTY_RANGE,
+    /** 导出繁忙，可以稍后重试。 */
+    BUSY,
     /** 事件元数据无效。 */
     INVALID_EVENT,
     /** 存储不可用。 */
@@ -73,6 +85,8 @@ enum class JankExportStatus {
     SUCCESS,
     /** 部分导出。 */
     PARTIAL,
+    /** 无采样数据。 */
+    EMPTY,
     /** 导出失败。 */
     FAILED,
     /** 其他引擎状态。 */
@@ -87,6 +101,12 @@ data class JankExportResult(
     val artifactPath: String?,
     /** ZIP 是否已写入持久上传队列。 */
     val queued: Boolean,
+    /** 导出的采样记录数。 */
+    val recordCount: Int = 0,
+    /** 环形缓冲区被覆盖的记录数。 */
+    val overwrittenRecordCount: Long = 0L,
+    /** 入队前保存的 ZIP 字节数。 */
+    val artifactSizeBytes: Long = 0L,
 )
 
 /** Jank 导出回调。 */
@@ -140,6 +160,7 @@ object JankComponent {
     /** 将 Rhea 初始化状态映射为 SDK 自有枚举。 */
     internal fun mapInitResult(result: JankArtifactInitResult): JankInitResult {
         val status = when (result.traceResult) {
+            RheaTrace3.InitResult.INITIALIZING -> JankInitStatus.INITIALIZING
             RheaTrace3.InitResult.STARTED -> JankInitStatus.STARTED
             RheaTrace3.InitResult.ALREADY_STARTED -> JankInitStatus.ALREADY_STARTED
             RheaTrace3.InitResult.DISABLED -> JankInitStatus.DISABLED
@@ -178,25 +199,17 @@ class JankHandle internal constructor(
         val result = JankArtifactReporter.exportAndEnqueue(
             rheaEvent,
             JankArtifactExportCallback { exported ->
-                callback.onCompleted(
-                    JankExportResult(
-                        status = when (exported.exportResult.status) {
-                            RheaTrace3.ExportStatus.SUCCESS -> JankExportStatus.SUCCESS
-                            RheaTrace3.ExportStatus.PARTIAL -> JankExportStatus.PARTIAL
-                            else -> JankExportStatus.FAILED
-                        },
-                        artifactPath = exported.exportResult.artifact.path,
-                        queued = exported.queued,
-                    ),
-                )
+                callback.onCompleted(exported.result)
             },
         )
-        return when (result) {
-            RheaTrace3.ExportRequestResult.ACCEPTED -> JankExportRequestStatus.ACCEPTED
-            RheaTrace3.ExportRequestResult.NOT_INITIALIZED -> JankExportRequestStatus.NOT_INITIALIZED
+        return mapExportRequest(result)
+    }
+
+    internal companion object {
+        /** 保留引擎拒绝原因，页面仅对繁忙状态重试。 */
+        fun mapExportRequest(result: RheaTrace3.ExportRequestResult): JankExportRequestStatus = when (result) {
             RheaTrace3.ExportRequestResult.INVALID_JANK_METADATA -> JankExportRequestStatus.INVALID_EVENT
-            RheaTrace3.ExportRequestResult.STORAGE_UNAVAILABLE -> JankExportRequestStatus.STORAGE_UNAVAILABLE
-            else -> JankExportRequestStatus.OTHER
+            else -> JankExportRequestStatus.valueOf(result.name)
         }
     }
 

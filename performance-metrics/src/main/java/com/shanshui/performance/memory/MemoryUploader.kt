@@ -55,6 +55,11 @@ internal class MemoryUploader(
         val requestId = requestIdGenerator()
         val selected = mutableListOf<MemoryQueueItem>()
         for (candidate in candidates) {
+            // 配置降低上限或恢复耗尽记录时，发送前就收口，不额外尝试一次。
+            if (candidate.record.attempts >= config.maxAttempts) {
+                store.moveToDeadLetter(listOf(candidate), "retry_exhausted")
+                continue
+            }
             val tentative = MemoryBatchRequest(
                 requestId,
                 (selected + candidate).map { it.record.event },
@@ -98,13 +103,14 @@ internal class MemoryUploader(
         }
     }
 
+    /** 严格核对 requestId、无溢出计数和唯一错误定位，再逐项确认历史事件。 */
     private fun handleSuccess(
         batch: SelectedBatch,
         result: NetworkResult.Success<MemoryBatchResponse>,
     ): MemoryFlushReport {
         val response = result.data
         if (result.statusCode != HTTP_OK ||
-            (response.requestId != null && response.requestId != batch.request.requestId)
+            response.requestId != batch.request.requestId
         ) {
             return retryOrDeadLetter(batch.items, response.retryAfterSeconds, "invalid_success_response")
         }
@@ -112,9 +118,9 @@ internal class MemoryUploader(
         val duplicate = response.duplicate
         val rejected = response.rejected
         val errors = response.errors
-        val countsMatch = accepted != null && accepted >= 0 && duplicate != null && duplicate >= 0 &&
-            rejected != null && rejected >= 0 &&
-            accepted + duplicate + rejected == batch.items.size
+        val countsMatch = accepted != null && accepted in 0..batch.items.size && duplicate != null && duplicate in 0..batch.items.size &&
+            rejected != null && rejected in 0..batch.items.size &&
+            accepted.toLong() + duplicate.toLong() + rejected.toLong() == batch.items.size.toLong()
         if (!countsMatch || errors == null || errors.size != rejected) {
             return retryOrDeadLetter(batch.items, response.retryAfterSeconds, "response_count_mismatch")
         }
@@ -180,12 +186,13 @@ internal class MemoryUploader(
             ?.coerceAtMost(MAX_RETRY_DELAY_MILLIS / 1_000L)
             ?.times(1_000L)
             ?: calculateBackoffMillis(retryItems)
-        store.markRetry(retryItems, clock() + delayMillis)
-        logger { "memory batch retained for retry reason=$reason count=${retryItems.size}" }
+        /** SDK 接管时旧请求可能仍在途，存储重新核对次数后也可能直接耗尽隔离。 */
+        val concurrentlyExhausted = store.markRetry(retryItems, clock() + delayMillis)
+        logger { "memory batch retry decision reason=$reason candidates=${retryItems.size} concurrentlyExhausted=$concurrentlyExhausted" }
         return MemoryFlushReport(
             batchesSent = 1,
-            eventsRetried = retryItems.size,
-            eventsDeadLettered = exhausted.size,
+            eventsRetried = retryItems.size - concurrentlyExhausted,
+            eventsDeadLettered = exhausted.size + concurrentlyExhausted,
         )
     }
 

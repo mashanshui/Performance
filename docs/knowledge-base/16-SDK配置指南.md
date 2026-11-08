@@ -229,25 +229,22 @@ FPS 计算。`VERBOSE` 会打印原始帧耗时、帧预算、有效耗时及首
 
 内存指标独立于 Crash、Jank 和 FPS 开关，只在主进程运行。初始化时立即采集一次；Activity
 进入前台或确认进入后台时也立即采集一次，随后按对应周期执行。采集和磁盘操作在 SDK 后台线程，
-不会放到主线程。事件使用服务端 `memory_sample` v2，PSS 使用 `Debug.getPss()`，VSS 读取
+不会放到主线程。事件使用服务端 `memory_peak_summary` v2，PSS 使用 `Debug.getPss()`，VSS 读取
 `/proc/self/status` 的 `VmSize`，Java 堆使用 `Runtime.totalMemory() - Runtime.freeMemory()`。
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
 | `enabled` | `true` | 是否启用主进程内存采集和上传 |
-| `foregroundSamplingIntervalMillis` | `60000` | 前台周期，必须为正数 |
-| `backgroundSamplingIntervalMillis` | `300000` | 后台周期，必须为正数 |
-| `uploadIntervalMillis` | `30000` | 上传检查周期，必须为正数 |
+| `foregroundSamplingIntervalMillis` | `10000` | 前台周期，必须为正数 |
+| `backgroundSamplingIntervalMillis` | `30000` | 后台周期，必须为正数 |
+| `uploadIntervalMillis` | `30000` | 历史上传检查及当前轮脏快照检查点周期，必须为正数 |
 | `batchSize` | `20` | 单批最多事件数，范围 `1..50` |
 | `maxBatchBytes` | `512 KiB` | 单批 JSON 大小，范围 `16 KiB..1 MiB` |
-| `queueDiskQuotaBytes` | `20 MiB` | 正常事件和失败隔离文件共用额度 |
-| `eventTtlMillis` | `7 天` | 事件和失败隔离文件的保留时间 |
+| `queueDiskQuotaBytes` | `20 MiB` | current、封存事件和失败隔离文件共用额度，保护唯一 current |
+| `eventTtlMillis` | `90 天` | 历史按原 lastSampledAt 计算，恰好边界过期；活动 current 不因历史 TTL 删除 |
 | `maxAttempts` | `10` | 网络或服务端可重试失败的最大次数 |
 
-三个指标可以独立缺失，不能用 0 代替读取失败；真实的零值会保留。单事件 JSON 超过服务端 256 KiB 上限会进入 `dead-letter`。事件生成稳定
-`eventId` 后先原子写入 `noBackupFilesDir/performance-memory-reporter/events`，服务端确认
-`accepted` 或 `duplicate` 后才删除。网络中断、408、429 和 5xx 会按 `Retry-After` 或退避重试，
-永久错误和达到最大次数的事件进入 `dead-letter`。
+三项分别累计观测最大值，相等保留首次上下文，至少一项有效才保存当前轮；缺失不写零。首个有效快照固定原事件 ID、身份、版本/buildId。本轮只写 current，新进程启动先封存到 events 才补报；同进程 SDK 重建不封存。服务端 accepted/duplicate 确认后才删除历史。网络/408/429/5xx 退避、永久错误与重试上限隔离保持不变。自定义客户端 TTL 不改变服务端独立 90 天接收窗口。可靠存储详见[内存专题](13-内存指标采集与上传.md)，10/30 秒默认来自同设备候选实验，完整路径、功耗及观测边界见[构建测试](11-构建测试与本地发布.md#运行期内存峰值验证)。
 
 ### 3.6 `MemoryLeakConfig`
 

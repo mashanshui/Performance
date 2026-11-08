@@ -13,12 +13,41 @@ import java.util.Locale
 import kotlin.math.roundToInt
 
 /**
- * 在真实设备上测量内存三项原始采集操作的耗时，并比较两种 PSS API。
+ * 在 Android 设备上分别测量原始读取与完整运行峰值持久化路径。
  *
- * 该测试只测采集本身，不包含事件序列化、磁盘队列和网络上传，避免把不同阶段的成本混在一起。
+ * 原始对照方法比较两种 PSS API；完整路径方法额外覆盖生产累计、可靠 current 写盘和检查点，
+ * 两组独立输出，不把原始读取耗时当作峰值上报完整开销；均不包含网络上传。
  */
 @RunWith(AndroidJUnit4::class)
 class MemorySamplingTimingTest {
+
+    /** 完整生产采样/累计/可靠落盘耗时，同时确定性覆盖新高及检查点路径。 */
+    @Test
+    fun measureFullPeakPersistencePath() {
+        /** 目标测试上下文，不访问其他应用。 */
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        /** 专用临时目录，不能清空实际 Reporter 队列。 */
+        val root = File(context.cacheDir, "memory-full-path-test").apply { deleteRecursively(); mkdirs() }
+        try {
+            /** 直接驱动生产实现的测试桥。 */
+            val probe = MemoryPeakDeviceProbe(root)
+            /** 包含实际读取、比较、可靠替换及检查点的纳秒耗时。 */
+            val fullPath = LongArray(SAMPLE_COUNT) { elapsedNanos { probe.sample(true, checkpoint = true) } }
+            /** 新高前成功写盘次数，用于证明立即保存。 */
+            val previousWrites = probe.writes
+            probe.synthetic(8_000_000_000_000_000L, true)
+            assertTrue(probe.writes > previousWrites)
+            /** 低值普通采样不应增加此计数，检查点才可增加。 */
+            val highWrites = probe.writes
+            SystemClock.sleep(2)
+            probe.synthetic(1, false)
+            assertTrue(probe.writes == highWrites)
+            probe.checkpoint()
+            assertTrue(probe.writes > highWrites)
+            assertTrue(probe.snapshot().contains("memoryPeakSummary"))
+            Log.i(TAG, "fullPeakPath=${formatStats(fullPath)} writes=${probe.writes} jsonBytesWritten=${probe.bytesWritten}")
+        } finally { root.deleteRecursively() }
+    }
 
     @Test
     fun measureMemorySamplingTimingOnDevice() {

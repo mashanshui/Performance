@@ -119,6 +119,36 @@ class PerformanceSdkIntegrationTest {
         second.close()
     }
 
+    /** 验证峰值配置完整透传，flush/close 不改变共享运行身份或其他能力配置。 */
+    @Test
+    fun memoryPeakConfigurationSurvivesCloseAndReinitialize() {
+        /** 记录真正传递给 metrics 工厂的配置。 */
+        val dependencies = RecordingDependencies()
+        /** 框架占位对象，不触发网络或 Android 生命周期。 */
+        val application = Application()
+        /** 与默认值不同的候选频率和检查点，防止透传测试只验证默认相等。 */
+        val config = testConfig().copy(memory = MemoryConfig(
+            foregroundSamplingIntervalMillis = 5_000, backgroundSamplingIntervalMillis = 30_000,
+            uploadIntervalMillis = 1_000, maxAttempts = 7,
+        ))
+        /** 第一代 SDK 使用共享身份并透传完整 MemoryConfig。 */
+        val first = PerformanceSdk.initializeForTesting(application, "test-key", config, dependencies)
+        first.flushAsync()
+        assertEquals(config.memory, dependencies.memoryConfig)
+        assertEquals(90L * 86_400_000, dependencies.memoryConfig!!.eventTtlMillis)
+        first.close()
+        /** 第二代 SDK 的网络会话更新，进程身份仍由同一上下文提供。 */
+        val second = PerformanceSdk.initializeForTesting(application, "test-key", config, dependencies)
+        assertEquals(first.processId, second.processId)
+        assertEquals(first.sessionId, second.sessionId)
+        assertEquals(config.memory, dependencies.memoryConfig)
+        assertEquals(config.fps, dependencies.fpsConfig)
+        assertEquals(config.crash, dependencies.crashConfig)
+        assertEquals(config.memoryLeak, dependencies.memoryLeakConfig)
+        second.flushAsync()
+        second.close()
+    }
+
     /** 构造覆盖功能开关和共享 buildId 的测试配置。 */
     private fun testConfig(): PerformanceConfig {
         return PerformanceConfig(

@@ -4,7 +4,7 @@ import com.shanshui.performance.metrics.MemoryConfig
 import com.shanshui.performance.network.MemoryBatchError
 import com.shanshui.performance.network.MemoryBatchResponse
 import com.shanshui.performance.network.MemoryMetricEvent
-import com.shanshui.performance.network.MemorySamplePayload
+import com.shanshui.performance.network.MemoryPeakSummary
 import com.shanshui.performance.network.NetworkResult
 import java.io.IOException
 import java.nio.file.Files
@@ -22,9 +22,12 @@ class MemoryUploaderTest {
             val store = createStore(root)
             val event = event("event-1")
             store.enqueue(event)
+            /** 确认确实发生发送，不能让过期删除伪装成 duplicate 确认。 */
+            var sends = 0
             val uploader = MemoryUploader(
                 store = store,
                 sender = MemoryBatchSender {
+                    sends++
                     NetworkResult.Success(
                         MemoryBatchResponse(
                             requestId = it.requestId,
@@ -34,11 +37,13 @@ class MemoryUploaderTest {
                     )
                 },
                 config = MemoryConfig(),
+                clock = { 1_000L },
             )
 
             uploader.flush()
 
             assertEquals(0, store.count())
+            assertEquals(1, sends)
         } finally {
             deleteRecursively(root)
         }
@@ -78,7 +83,7 @@ class MemoryUploaderTest {
             uploader.flush()
             uploader.flush()
 
-            assertEquals(listOf("event-2", "event-2"), sentIds)
+            assertEquals(listOf(event("event-2").eventId, event("event-2").eventId), sentIds)
             assertEquals(0, store.count())
         } finally {
             deleteRecursively(root)
@@ -192,9 +197,9 @@ class MemoryUploaderTest {
                             accepted = 1,
                             rejected = 2,
                             errors = listOf(
-                                MemoryBatchError(index = 1, code = "TEMPORARY", retryable = true),
+                                MemoryBatchError(eventId = event("event-retryable").eventId, code = "TEMPORARY", retryable = true),
                                 MemoryBatchError(
-                                    index = 2,
+                                    eventId = event("event-package-error").eventId,
                                     code = "PACKAGE_NAME_MISMATCH",
                                     retryable = false,
                                 ),
@@ -214,6 +219,7 @@ class MemoryUploaderTest {
             assertEquals(1, report.eventsRetried)
             assertEquals(1, report.eventsDeadLettered)
             assertEquals(1, store.count())
+            assertEquals(event("event-retryable").eventId, store.peekBatch(10, 100_000).single().record.event.eventId)
             assertEquals(1, root.resolve("dead-letter").toFile().listFiles().orEmpty().size)
         } finally {
             deleteRecursively(root)
@@ -257,13 +263,16 @@ class MemoryUploaderTest {
         )
     }
 
+    /** 由测试名称生成稳定合法 UUID，构造仅含运行峰值的新协议事件。 */
     private fun event(eventId: String): MemoryMetricEvent {
+        // 测试名称稳定映射到合法 UUID v4，仍可断言重试身份不变。
+        val uuid = java.util.UUID.nameUUIDFromBytes(eventId.toByteArray()).toString().replaceRange(14, 15, "4")
         return MemoryMetricEvent(
             schemaVersion = 2,
-            eventId = eventId,
-            eventType = "memory_sample",
+            eventId = uuid,
+            eventType = "memory_peak_summary",
             occurredAt = 1_000L,
-            sessionId = "session",
+            sessionId = "11111111-1111-4111-8111-111111111111",
             processId = "11111111-1111-4111-8111-111111111111",
             anonymousDeviceId = "device",
             packageName = "com.shanshui.test",
@@ -274,12 +283,10 @@ class MemoryUploaderTest {
             channel = "unit",
             osVersion = "35",
             deviceModel = "test",
-            memorySample = MemorySamplePayload(
-                pssBytes = 1L,
-                vssBytes = null,
-                javaHeapUsedBytes = 2L,
-                processName = "com.shanshui.test",
-                foreground = true,
+            memoryPeakSummary = MemoryPeakSummary(
+                processName = "com.shanshui.test", collectionStartedAt = 1_000L, lastSampledAt = 1_000L,
+                pss = com.shanshui.performance.network.MemoryPeak(1L, 1_000L, true),
+                javaHeap = com.shanshui.performance.network.MemoryPeak(2L, 1_000L, true),
             ),
         )
     }

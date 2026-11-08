@@ -9,7 +9,11 @@ internal data class MemorySampleValues(
     val vssBytes: Long?,
     val javaHeapUsedBytes: Long?,
 ) {
-    fun hasValue(): Boolean = pssBytes != null || vssBytes != null || javaHeapUsedBytes != null
+    /** 至少一项合法字节值才是有效观测，负数和溢出不能推进观测截止。 */
+    fun hasValue(): Boolean = valid(pssBytes) || valid(vssBytes) || valid(javaHeapUsedBytes)
+
+    /** 与读取器及 wire 契约共用相同的非负安全整数范围。 */
+    private fun valid(value: Long?): Boolean = value != null && value in 0L..MemorySampler.MAX_MEMORY_BYTES
 }
 
 /**

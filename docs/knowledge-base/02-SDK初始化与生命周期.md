@@ -42,7 +42,7 @@ PerformanceSdk.initialize
 匿名设备 ID 由 Crash 目录下的 `anonymous-device-id` 文件保存，即使仅启用 Jank 或 `memoryLeak` 也复用这一实现。应用元数据包含包名、版本名和 versionCode，默认 buildId 为 `versionName-versionCode`。Crash 配置可以覆盖其事件元数据，Jank 另有 buildId 覆盖；FPS 和内存泄漏 report 使用 Application 元数据和公共派生 buildId。
 
 SDK 在本进程第一次初始化时生成并缓存一个 `RuntimeIdentity`。主进程的 `processId` 与本次进程启动的
-`sessionId` 相同；子进程各自生成独立的 `sessionId`/`processId`。Crash、FPS、memory_sample、
+`sessionId` 相同；子进程各自生成独立的 `sessionId`/`processId`。Crash、FPS、memory_peak_summary、
 内存泄漏 report metadata 和 Rhea Jank ZIP 都复用当前进程的 `processId`，事件重试不重新生成；
 JankEvent 仍由调用方提供 `sessionId`，SDK 会拒绝与当前 SDK 会话不一致的事件。Activity 泄漏检测本身
 不单独生成事件，但其 report metadata 使用同一身份。
@@ -103,7 +103,7 @@ KOOM 自身维护进程级 `mHasDumped`：第一次 `dumpAndAnalysis()` 在进�
 
 `close` 使用原子标志保证重复调用无副作用，与初始化共用锁。实际释放顺序先关闭 Activity 泄漏 watcher，再停止本 SDK 启动的 KOOM 循环和 report 上传器，然后关闭内存 Reporter、FPS、Jank、Crash、本 SDK 启动的 Rhea 和共享网络。KOOM 的 `mHasDumped` 不会被重置。
 
-初始化失败的 `rollback()` 使用同样的泄漏 watcher → KOOM → 内存 → FPS → Jank → Crash → Rhea → 网络顺序，尽量释放已经创建的资源。FPS 关闭时把磁盘工作提交给专用线程，但会通过 `task.get()` 等待，因此调用线程仍可能等待持久化完成。report 和内存事件每次产生即原子落盘，关闭只停止生命周期回调和调度，不删除未确认任务。关闭不承诺上传完成；下次初始化恢复队列。Crash close 恢复旧异常 handler 的前提是当前 handler 仍是自己安装的实例。
+初始化失败的 `rollback()` 使用同样的泄漏 watcher → KOOM → 内存 → FPS → Jank → Crash → Rhea → 网络顺序，尽量释放已经创建的资源。FPS 关闭时把磁盘工作提交给专用线程，但会通过 `task.get()` 等待，因此调用线程仍可能等待持久化完成。泄漏 report 仍在生成后保存到独立队列。内存指标则只累计本轮峰值：新高立即保存 current，无新高按周期提交脏检查点，close 取消本实例任务并把最后检查点排到共享采样线程，不封存或上传当前轮。同进程重建须排在旧采样及最终检查点之后恢复原 eventId、身份和元数据；新进程才先可靠封存旧轮。内存 close 不在调用线程读写快照，但整个 SDK close 仍可能等待其他组件。关闭不承诺上传完成，不删除未确认历史任务；边界见[内存专题](13-内存指标采集与上传.md)。Crash close 恢复旧异常 handler 的前提是当前 handler 仍是自己安装的实例。
 
 ## 源码与验证依据
 

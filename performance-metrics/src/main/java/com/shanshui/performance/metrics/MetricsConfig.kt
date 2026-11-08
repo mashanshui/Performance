@@ -57,10 +57,10 @@ data class MemoryConfig(
     /** 是否启用内存指标。 */
     val enabled: Boolean = true,
     /** 前台采样间隔。 */
-    val foregroundSamplingIntervalMillis: Long = 60_000L,
+    val foregroundSamplingIntervalMillis: Long = 10_000L,
     /** 后台采样间隔。 */
-    val backgroundSamplingIntervalMillis: Long = 5L * 60L * 1_000L,
-    /** 上传间隔。 */
+    val backgroundSamplingIntervalMillis: Long = 30_000L,
+    /** 历史上传检查及当前轮脏快照检查点周期。 */
     val uploadIntervalMillis: Long = 30_000L,
     /** 单批事件数量上限。 */
     val batchSize: Int = 20,
@@ -68,9 +68,9 @@ data class MemoryConfig(
     val maxBatchBytes: Int = 512 * 1024,
     /** 队列磁盘配额。 */
     val queueDiskQuotaBytes: Long = 20L * 1024L * 1024L,
-    /** 事件保留时间。 */
-    val eventTtlMillis: Long = 7L * 24L * 60L * 60L * 1_000L,
-    /** 单条事件最大重试次数。 */
+    /** 历史峰值按原 lastSampledAt 保留，活动 current 不按历史 TTL 清理。 */
+    val eventTtlMillis: Long = 90L * 24L * 60L * 60L * 1_000L,
+    /** 单条历史事件最大失败尝试次数，含首次请求。 */
     val maxAttempts: Int = 10,
 ) {
     /** 校验内存指标配置范围。 */
@@ -95,8 +95,8 @@ data class MemoryConfig(
 
     /** 内存队列默认值常量。 */
     companion object {
-        /** 默认事件保留时间。 */
-        const val DEFAULT_EVENT_TTL_MILLIS = 7L * 24L * 60L * 60L * 1_000L
+        /** 默认历史峰值保留窗口，以原观测截止计算。 */
+        const val DEFAULT_EVENT_TTL_MILLIS = 90L * 24L * 60L * 60L * 1_000L
         /** 默认队列磁盘配额。 */
         const val DEFAULT_QUEUE_DISK_QUOTA_BYTES = 20L * 1024L * 1024L
     }
@@ -116,11 +116,11 @@ data class MetricsServiceConfig(
     val fpsQueueDiskQuotaBytes: Long = FpsConfig.DEFAULT_QUEUE_DISK_QUOTA_BYTES,
     /** 是否允许内存 reporter 工作。 */
     val memoryEnabled: Boolean = true,
-    /** 内存队列事件过期时间。 */
+    /** 内存历史事件按原观测截止计算的过期窗口。 */
     val memoryEventTtlMillis: Long = MemoryConfig.DEFAULT_EVENT_TTL_MILLIS,
     /** 内存队列磁盘配额。 */
     val memoryQueueDiskQuotaBytes: Long = MemoryConfig.DEFAULT_QUEUE_DISK_QUOTA_BYTES,
-    /** 内存事件单条最大重试次数。 */
+    /** 内存历史事件单条最大失败尝试次数，含首次请求。 */
     val memoryMaxAttempts: Int = 10,
 ) {
     /** 校验精简 Metrics 接入不依赖其他功能配置。 */

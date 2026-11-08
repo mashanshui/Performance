@@ -70,10 +70,10 @@ fun buildConfigString(value: String): String {
 }
 
 /** 示例应用的 versionCode，作为编译期 buildId 的固定组成部分。 */
-val performanceVersionCode = 1
+val performanceVersionCode = providers.gradleProperty("performance.versionCode").map(String::toInt).getOrElse(1)
 
 /** 示例应用的 versionName，作为编译期 buildId 的固定组成部分。 */
-val performanceVersionName = "1.0"
+val performanceVersionName = providers.gradleProperty("performance.versionName").getOrElse("1.0")
 
 /** 当前 Gradle 命令生成并供所有构建变体共用的 buildId。 */
 val performanceBuildId = generatePerformanceBuildId(
@@ -81,14 +81,20 @@ val performanceBuildId = generatePerformanceBuildId(
     versionCode = performanceVersionCode,
 )
 
+/** 上报凭据只从本机属性注入，不能硬编码真实值。 */
 val performanceAppKey = providers.gradleProperty("performance.appKey")
     .orElse("local-demo-app-key")
     .get()
 
+/** 联调入口仅供本机测试，空值继续使用 SDK 默认地址。 */
+val performanceBaseUrl = providers.gradleProperty("performance.baseUrl").getOrElse("")
+/** 显式 Debug 联调时关闭无关组件，并允许测试专用启动故障探针。 */
+val performanceMemoryJointTest = providers.gradleProperty("performance.memoryJointTest").map(String::toBoolean).getOrElse(false)
+
 android {
     namespace = "com.shanshui.performance"
-    // 仪器烟测直接运行混淆后的 Release 变体。
-    testBuildType = "release"
+    // 默认测试混淆后的 Release；可用 -Pperformance.testBuildType=debug 保留本机 Debug 应用数据。
+    testBuildType = providers.gradleProperty("performance.testBuildType").orElse("release").get()
     compileSdk {
         version = release(36)
     }
@@ -107,6 +113,8 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "PERFORMANCE_APP_KEY", buildConfigString(performanceAppKey))
         buildConfigField("String", "PERFORMANCE_BUILD_ID", buildConfigString(performanceBuildId))
+        buildConfigField("String", "PERFORMANCE_BASE_URL", buildConfigString(performanceBaseUrl))
+        buildConfigField("boolean", "PERFORMANCE_MEMORY_JOINT_TEST", performanceMemoryJointTest.toString())
     }
 
     signingConfigs {
